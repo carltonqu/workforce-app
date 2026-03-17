@@ -1,22 +1,17 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export async function GET() {
   try {
-    const rawUrl = process.env.DATABASE_URL ?? "NOT_SET";
-    const authToken = process.env.DATABASE_AUTH_TOKEN;
-
-    let dbUrl = rawUrl;
-    if (dbUrl.startsWith("libsql://")) {
-      dbUrl = dbUrl.replace("libsql://", "https://");
-    }
-
-    return NextResponse.json({
-      raw_url: rawUrl,
-      converted_url: dbUrl,
-      has_token: !!authToken,
-      token_prefix: authToken?.substring(0, 20),
-      node_env: process.env.NODE_ENV,
+    const user = await prisma.user.findUnique({
+      where: { email: "admin@demo.com" },
     });
+
+    if (!user) return NextResponse.json({ error: "User not found" });
+
+    const match = await bcrypt.compare("password123", user.password);
+    return NextResponse.json({ found: true, email: user.email, passwordMatch: match });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
