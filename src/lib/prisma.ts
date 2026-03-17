@@ -6,8 +6,8 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
-  let dbUrl = process.env.DATABASE_URL ?? "file:./dev.db";
-  const authToken = process.env.DATABASE_AUTH_TOKEN;
+  let dbUrl = (process.env.DATABASE_URL ?? "file:./dev.db").trim();
+  const authToken = process.env.DATABASE_AUTH_TOKEN?.trim();
 
   // Turso: convert https:// → libsql:// and use ?tls=1 for HTTP fallback
   // @libsql/client supports both libsql:// (ws) and https:// (http)
