@@ -5,10 +5,20 @@ const publicPaths = ["/", "/login"];
 
 export async function middleware(req: NextRequest) {
   const { nextUrl } = req;
-  const token = await getToken({
-    req,
-    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-  });
+
+  // NextAuth v5 uses __Secure-authjs.session-token on HTTPS
+  // and authjs.session-token on HTTP — try both
+  const token =
+    (await getToken({
+      req,
+      secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+      cookieName: "__Secure-authjs.session-token",
+    })) ??
+    (await getToken({
+      req,
+      secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+      cookieName: "authjs.session-token",
+    }));
 
   const isLoggedIn = !!token;
   const isPublicPath = publicPaths.includes(nextUrl.pathname);
