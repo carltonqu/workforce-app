@@ -32,16 +32,18 @@ function LoginForm() {
       email: form.email,
       password: form.password,
       redirect: false,
+      callbackUrl: redirect,
     });
 
     setLoading(false);
 
-    if (result?.error) {
+    if (!result || result.error) {
       toast.error("Invalid email or password.");
-    } else {
-      router.push(redirect);
-      router.refresh();
+      return;
     }
+
+    // Force hard navigation to ensure session is picked up
+    window.location.href = result.url ?? redirect;
   }
 
   return (
