@@ -63,21 +63,46 @@ const adminSections = [
 
 // ─── Employee Nav Structure ────────────────────────────────────────────────────
 
+import {
+  Activity as ActivityIcon,
+  Plane as PlaneIcon,
+  ClipboardList as ClipboardListIcon,
+  User as UserIcon,
+} from "lucide-react";
+
 const employeeSections = [
   {
-    title: "Main",
+    title: "Overview",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, feature: null },
-      { href: "/time-tracking", label: "Time Tracking", icon: Clock, feature: "time-tracking" as const },
-      { href: "/scheduling", label: "Scheduling", icon: Calendar, feature: "scheduling" as const },
-      { href: "/payroll", label: "Payroll", icon: DollarSign, feature: "payroll" as const },
+      { href: "/employee-dashboard", label: "My Dashboard", icon: LayoutDashboard, feature: null },
     ],
   },
   {
-    title: "System",
+    title: "My Work",
     items: [
+      { href: "/my-schedule", label: "My Schedule", icon: Calendar, feature: null },
+      { href: "/clock", label: "Clock In/Out", icon: Clock, feature: null },
+      { href: "/my-attendance", label: "Attendance History", icon: ActivityIcon, feature: null },
+    ],
+  },
+  {
+    title: "My Requests",
+    items: [
+      { href: "/my-requests", label: "Requests", icon: ClipboardListIcon, feature: null },
+      { href: "/my-leave", label: "Leave", icon: PlaneIcon, feature: null },
+    ],
+  },
+  {
+    title: "Finance",
+    items: [
+      { href: "/my-payslips", label: "My Payslips", icon: DollarSign, feature: null },
+    ],
+  },
+  {
+    title: "Account",
+    items: [
+      { href: "/my-profile", label: "My Profile", icon: UserIcon, feature: null },
       { href: "/notifications", label: "Notifications", icon: Bell, feature: "notifications" as const },
-      { href: "/settings", label: "Settings", icon: Settings, feature: null },
     ],
   },
 ];

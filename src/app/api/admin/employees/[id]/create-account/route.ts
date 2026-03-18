@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
+import { createClient } from "@libsql/client";
+
+function getDb() {
+  return createClient({
+    url: (process.env.DATABASE_URL ?? "").replace("libsql://", "https://"),
+    authToken: process.env.DATABASE_AUTH_TOKEN,
+  });
+}
+
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const adminUser = session.user as any;
+  if (adminUser.role !== "MANAGER" && adminUser.role !== "HR") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const db = getDb();
+  const empRes = await db.execute({ sql: "SELECT * FROM Employee WHERE id=?", args: [params.id] });
+  if (!empRes.rows.length) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+  const emp = empRes.rows[0] as any;
+
+  const body = await req.json();
+  const { password } = body;
+  if (!password || password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+
+  const existingByLinked = await db.execute({ sql: "SELECT id FROM User WHERE linkedEmployeeId=?", args: [params.id] });
+  if (existingByLinked.rows.length) return NextResponse.json({ error: "Account already exists for this employee" }, { status: 409 });
+
+  const existingByEmail = await prisma.user.findUnique({ where: { email: emp.email as string } });
+  if (existingByEmail) return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
+
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const newUser = await prisma.user.create({
+    data: {
+      name: emp.fullName as string,
+      email: emp.email as string,
+      password: hashedPassword,
+      role: "EMPLOYEE",
+      tier: "FREE",
+      orgId: adminUser.orgId || null,
+    },
+  });
+
+  await db.execute({ sql: "UPDATE Employee SET orgId=? WHERE id=?", args: [adminUser.orgId || null, params.id] });
+  await db.execute({ sql: "UPDATE User SET linkedEmployeeId=? WHERE id=?", args: [params.id, newUser.id] });
+
+  return NextResponse.json({ success: true, userId: newUser.id, email: emp.email });
+}

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Users, Plus, Search, Edit2, Trash2, Eye,
-  Upload, X, AlertCircle, CheckCircle2, Loader2, User,
+  Upload, X, AlertCircle, CheckCircle2, Loader2, User, KeyRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -431,6 +431,76 @@ function ViewContent({ emp }: { emp: Employee }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+// ─── Create Account Modal (defined OUTSIDE main component) ────────────────────
+
+function CreateAccountModal({
+  emp,
+  onClose,
+  onSuccess,
+}: {
+  emp: Employee;
+  onClose: () => void;
+  onSuccess: (empId: string) => void;
+}) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleCreate() {
+    setError("");
+    if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    if (password !== confirmPassword) { setError("Passwords do not match"); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/employees/${emp.id}/create-account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Failed to create account"); return; }
+      onSuccess(emp.id);
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <Modal title="Create Login Account" onClose={onClose}
+      footer={
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleCreate} disabled={saving || !password || !confirmPassword}
+            className="bg-blue-600 hover:bg-blue-700 text-white">
+            {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating...</> : "Create Account"}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Employee</p>
+          <p className="font-medium text-gray-900 dark:text-white">{emp.fullName}</p>
+          <p className="text-sm text-gray-500">{emp.email}</p>
+        </div>
+        <Field label="Password (min. 6 characters)" required>
+          <FInput type="password" placeholder="••••••••" value={password}
+            onChange={(e) => setPassword(e.target.value)} />
+        </Field>
+        <Field label="Confirm Password" required>
+          <FInput type="password" placeholder="••••••••" value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)} />
+        </Field>
+        {error && (
+          <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 const TABS = [
   { id: "personal", label: "Personal Info" },
   { id: "employment", label: "Employment" },
@@ -451,6 +521,18 @@ export function EmployeesClient({ user }: { user: any }) {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [activeTab, setActiveTab] = useState("personal");
+  const [accountedIds, setAccountedIds] = useState<Set<string>>(new Set());
+  const [accountModal, setAccountModal] = useState<{ emp: Employee } | null>(null);
+
+  const fetchAccountedIds = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/employees/accounts");
+      if (res.ok) {
+        const ids: string[] = await res.json();
+        setAccountedIds(new Set(ids));
+      }
+    } catch { /* noop */ }
+  }, []);
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
@@ -466,7 +548,7 @@ export function EmployeesClient({ user }: { user: any }) {
     }
   }, [search, filterStatus, filterDept]);
 
-  useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
+  useEffect(() => { fetchEmployees(); fetchAccountedIds(); }, [fetchEmployees, fetchAccountedIds]);
 
   function showToast(type: "success" | "error", message: string) {
     setToast({ type, message });
@@ -632,6 +714,19 @@ export function EmployeesClient({ user }: { user: any }) {
                       <td className="px-4 py-3 hidden lg:table-cell text-sm text-gray-600 dark:text-gray-400">{formatDate(emp.hireDate)}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
+                          {accountedIds.has(emp.id) ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                              <CheckCircle2 className="w-3 h-3" />Account
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => setAccountModal({ emp })}
+                              className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition"
+                              title="Create Login Account"
+                            >
+                              <KeyRound className="w-4 h-4" />
+                            </button>
+                          )}
                           <button onClick={() => { setSelected(emp); setModal("view"); }} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition" title="View">
                             <Eye className="w-4 h-4" />
                           </button>
@@ -723,6 +818,19 @@ export function EmployeesClient({ user }: { user: any }) {
             </p>
           </div>
         </Modal>
+      )}
+
+      {/* Create Account Modal */}
+      {accountModal && (
+        <CreateAccountModal
+          emp={accountModal.emp}
+          onClose={() => setAccountModal(null)}
+          onSuccess={(empId) => {
+            setAccountedIds(prev => { const s = new Set(Array.from(prev)); s.add(empId); return s; });
+            setAccountModal(null);
+            showToast("success", "Login account created successfully");
+          }}
+        />
       )}
 
       {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}

@@ -11,6 +11,8 @@ export default async function DashboardPage() {
   const user = session.user as any;
   const isAdmin = user.role === "MANAGER" || user.role === "HR";
 
+  if (user.role === "EMPLOYEE") redirect("/employee-dashboard");
+
   if (isAdmin) {
     return (
       <DashboardLayout title="Admin Dashboard">
