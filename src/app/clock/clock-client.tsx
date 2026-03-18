@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Clock, CheckCircle2, AlertCircle, X, Loader2 } from "lucide-react";
+import { Clock, CheckCircle2, AlertCircle, X, Loader2, AlertTriangle } from "lucide-react";
 
 interface TimeEntry {
   id: string;
@@ -21,12 +21,95 @@ interface Shift {
   location?: string;
 }
 
+interface UndertimeInfo {
+  workedFormatted: string;
+  undertimeMinutes: number;
+  message: string;
+}
+
 function Toast({ type, message, onClose }: { type: "success" | "error"; message: string; onClose: () => void }) {
   return (
     <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium ${type === "success" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
       {type === "success" ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <AlertCircle className="w-4 h-4 text-red-600" />}
       {message}
       <button onClick={onClose} className="ml-2 opacity-60 hover:opacity-100"><X className="w-3 h-3" /></button>
+    </div>
+  );
+}
+
+function UndertimeModal({
+  info,
+  onConfirm,
+  onCancel,
+  processing,
+}: {
+  info: UndertimeInfo;
+  onConfirm: () => void;
+  onCancel: () => void;
+  processing: boolean;
+}) {
+  const undertimeH = Math.floor(info.undertimeMinutes / 60);
+  const undertimeM = info.undertimeMinutes % 60;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-5">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-5 h-5 text-orange-600" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Early Clock Out</h2>
+            <p className="text-sm text-gray-500">You haven't completed your full shift</p>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-gray-100" />
+
+        {/* Time breakdown */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-600">You've only worked</span>
+            <span className="text-sm font-semibold text-gray-900">{info.workedFormatted}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-600">Full shift requires</span>
+            <span className="text-sm font-semibold text-gray-900">8h 00m</span>
+          </div>
+          <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
+            <span className="text-sm font-semibold text-gray-700">Undertime</span>
+            <span className="text-sm font-bold text-red-600">{undertimeH}h {undertimeM}m</span>
+          </div>
+        </div>
+
+        {/* Warning */}
+        <div className="bg-orange-50 border border-orange-100 rounded-xl p-4">
+          <p className="text-sm text-orange-800">
+            This will be recorded as <span className="font-semibold">undertime</span> and may affect your attendance performance record.
+          </p>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={processing}
+            className="flex-1 py-3 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl transition disabled:opacity-60"
+          >
+            Cancel — Keep Working
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={processing}
+            className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl transition disabled:opacity-60 flex items-center justify-center gap-2"
+          >
+            {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {processing ? "Processing..." : "Confirm Undertime"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -52,6 +135,7 @@ export function ClockClient() {
   const [processing, setProcessing] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [duration, setDuration] = useState("");
+  const [undertimeInfo, setUndertimeInfo] = useState<UndertimeInfo | null>(null);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -108,19 +192,55 @@ export function ClockClient() {
     } finally { setProcessing(false); }
   }
 
-  async function handleClockOut() {
+  async function performClockOut(undertimeConfirmed: boolean) {
     setProcessing(true);
     try {
       const res = await fetch("/api/time-entries/clock-out", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(undertimeConfirmed ? { undertimeConfirmed: true } : {}),
       });
       const data = await res.json();
-      if (!res.ok) { showToast("error", data.error || "Failed to clock out"); return; }
-      showToast("success", "Clocked out successfully!");
+      if (!res.ok) {
+        showToast("error", data.error || "Failed to clock out");
+        return;
+      }
+      if (data.requiresConfirmation) {
+        // Show undertime modal
+        setUndertimeInfo({
+          workedFormatted: data.workedFormatted,
+          undertimeMinutes: data.undertimeMinutes,
+          message: data.message,
+        });
+        return;
+      }
+      // Successfully clocked out
+      setUndertimeInfo(null);
+      if (data.isUndertime) {
+        showToast("success", "Clocked out (undertime recorded).");
+      } else if (data.overtimeMinutes > 0) {
+        const h = Math.floor(data.overtimeMinutes / 60);
+        const m = data.overtimeMinutes % 60;
+        showToast("success", `Clocked out with ${h}h ${m}m overtime!`);
+      } else {
+        showToast("success", "Clocked out successfully!");
+      }
       await loadStatus();
-    } finally { setProcessing(false); }
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function handleClockOut() {
+    await performClockOut(false);
+  }
+
+  async function handleUndertimeConfirm() {
+    await performClockOut(true);
+  }
+
+  function handleUndertimeCancel() {
+    setUndertimeInfo(null);
   }
 
   // Compute lateness
@@ -152,6 +272,16 @@ export function ClockClient() {
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
+      {/* Undertime confirmation modal */}
+      {undertimeInfo && (
+        <UndertimeModal
+          info={undertimeInfo}
+          onConfirm={handleUndertimeConfirm}
+          onCancel={handleUndertimeCancel}
+          processing={processing}
+        />
+      )}
+
       {/* Clock display */}
       <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-8 text-center">
         <p className="text-gray-400 text-sm mb-1">{dateStr}</p>

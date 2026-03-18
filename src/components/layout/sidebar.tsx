@@ -16,6 +16,7 @@ import {
   Plane,
   ClipboardCheck,
   Lock,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,7 @@ const adminSections = [
     items: [
       { href: "/employees", label: "Employees", icon: Users, feature: null },
       { href: "/attendance", label: "Attendance", icon: Activity, feature: null },
+      { href: "/performance", label: "Performance", icon: TrendingUp, feature: null },
       { href: "/leave", label: "Leave Management", icon: Plane, feature: null },
     ],
   },
