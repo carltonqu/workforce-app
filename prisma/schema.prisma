@@ -98,3 +98,31 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model Employee {
+  id               String   @id @default(cuid())
+  employeeId       String   @unique
+  fullName         String
+  profilePhoto     String?
+  email            String
+  phoneNumber      String?
+  address          String?
+  emergencyContact String?  // JSON: { name, relationship, phone }
+  dateOfBirth      DateTime?
+  gender           String?
+  hireDate         DateTime?
+  employmentStatus String   @default("Active") // Active, Inactive, On Leave, Terminated
+  department       String?
+  position         String?
+  branchLocation   String?
+  reportingManager String?
+  employmentType   String?  // Full-time, Part-time, Contract, Probationary
+  payrollType      String?  // Monthly, Semi-monthly, Weekly, Daily
+  salaryRate       Float?
+  governmentTaxIds String?  // JSON: { sss, philhealth, pagibig, tin }
+  bankDetails      String?  // JSON: { bankName, accountName, accountNumber }
+  uploadedDocuments String? // JSON array: [{ name, url, uploadedAt }]
+  orgId            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}

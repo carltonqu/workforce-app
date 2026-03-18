@@ -12,6 +12,7 @@ import {
   Settings,
   LayoutDashboard,
   Lock,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -23,12 +24,21 @@ const navItems = [
     label: "Dashboard",
     icon: LayoutDashboard,
     feature: null,
+    adminOnly: false,
+  },
+  {
+    href: "/employees",
+    label: "Employees",
+    icon: Users,
+    feature: null,
+    adminOnly: true,
   },
   {
     href: "/time-tracking",
     label: "Time Tracking",
     icon: Clock,
     feature: "time-tracking" as const,
+    adminOnly: false,
   },
   {
     href: "/scheduling",
@@ -36,6 +46,7 @@ const navItems = [
     icon: Calendar,
     feature: "scheduling" as const,
     requiredTier: "PRO",
+    adminOnly: false,
   },
   {
     href: "/payroll",
@@ -43,6 +54,7 @@ const navItems = [
     icon: DollarSign,
     feature: "payroll" as const,
     requiredTier: "ADVANCED",
+    adminOnly: false,
   },
   {
     href: "/reports",
@@ -50,6 +62,7 @@ const navItems = [
     icon: BarChart2,
     feature: "reports" as const,
     requiredTier: "ADVANCED",
+    adminOnly: false,
   },
   {
     href: "/notifications",
@@ -57,12 +70,14 @@ const navItems = [
     icon: Bell,
     feature: "notifications" as const,
     requiredTier: "PRO",
+    adminOnly: false,
   },
   {
     href: "/settings",
     label: "Settings",
     icon: Settings,
     feature: null,
+    adminOnly: false,
   },
 ];
 
@@ -70,6 +85,8 @@ export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const tier = (session?.user as any)?.tier || "FREE";
+  const role = (session?.user as any)?.role || "EMPLOYEE";
+  const isAdmin = role === "MANAGER" || role === "HR";
 
   return (
     <aside className="hidden md:flex md:flex-col w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 min-h-screen">
@@ -86,6 +103,9 @@ export function Sidebar() {
 
       <nav className="flex-1 px-4 pb-4 space-y-1">
         {navItems.map((item) => {
+          // Hide admin-only items from non-admins
+          if (item.adminOnly && !isAdmin) return null;
+
           const isActive = pathname === item.href;
           const hasAccess =
             !item.feature || hasFeatureAccess(tier, item.feature);
