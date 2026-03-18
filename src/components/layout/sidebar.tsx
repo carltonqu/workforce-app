@@ -11,75 +11,127 @@ import {
   Bell,
   Settings,
   LayoutDashboard,
-  Lock,
   Users,
+  Activity,
+  Plane,
+  ClipboardCheck,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { hasFeatureAccess, TIER_COLORS, TIER_LABELS } from "@/lib/tier";
+import { hasFeatureAccess, TIER_COLORS, TIER_LABELS, type Tier, type Feature } from "@/lib/tier";
 
-const navItems = [
+// ─── Admin Nav Structure ───────────────────────────────────────────────────────
+
+const adminSections = [
   {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    feature: null,
-    adminOnly: false,
+    title: "Overview",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, feature: null },
+    ],
   },
   {
-    href: "/employees",
-    label: "Employees",
-    icon: Users,
-    feature: null,
-    adminOnly: true,
+    title: "People",
+    items: [
+      { href: "/employees", label: "Employees", icon: Users, feature: null },
+      { href: "/attendance", label: "Attendance", icon: Activity, feature: null },
+      { href: "/leave", label: "Leave Management", icon: Plane, feature: null },
+    ],
   },
   {
-    href: "/time-tracking",
-    label: "Time Tracking",
-    icon: Clock,
-    feature: "time-tracking" as const,
-    adminOnly: false,
+    title: "Operations",
+    items: [
+      { href: "/scheduling", label: "Scheduling", icon: Calendar, feature: "scheduling" as const },
+      { href: "/approvals", label: "Approvals", icon: ClipboardCheck, feature: null },
+    ],
   },
   {
-    href: "/scheduling",
-    label: "Scheduling",
-    icon: Calendar,
-    feature: "scheduling" as const,
-    requiredTier: "PRO",
-    adminOnly: false,
+    title: "Finance",
+    items: [
+      { href: "/payroll", label: "Payroll", icon: DollarSign, feature: "payroll" as const },
+      { href: "/reports", label: "Reports", icon: BarChart2, feature: "reports" as const },
+    ],
   },
   {
-    href: "/payroll",
-    label: "Payroll",
-    icon: DollarSign,
-    feature: "payroll" as const,
-    requiredTier: "ADVANCED",
-    adminOnly: false,
-  },
-  {
-    href: "/reports",
-    label: "Reports",
-    icon: BarChart2,
-    feature: "reports" as const,
-    requiredTier: "ADVANCED",
-    adminOnly: false,
-  },
-  {
-    href: "/notifications",
-    label: "Notifications",
-    icon: Bell,
-    feature: "notifications" as const,
-    requiredTier: "PRO",
-    adminOnly: false,
-  },
-  {
-    href: "/settings",
-    label: "Settings",
-    icon: Settings,
-    feature: null,
-    adminOnly: false,
+    title: "System",
+    items: [
+      { href: "/notifications", label: "Notifications", icon: Bell, feature: "notifications" as const },
+      { href: "/settings", label: "Settings", icon: Settings, feature: null },
+    ],
   },
 ];
+
+// ─── Employee Nav Structure ────────────────────────────────────────────────────
+
+const employeeSections = [
+  {
+    title: "Main",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, feature: null },
+      { href: "/time-tracking", label: "Time Tracking", icon: Clock, feature: "time-tracking" as const },
+      { href: "/scheduling", label: "Scheduling", icon: Calendar, feature: "scheduling" as const },
+      { href: "/payroll", label: "Payroll", icon: DollarSign, feature: "payroll" as const },
+    ],
+  },
+  {
+    title: "System",
+    items: [
+      { href: "/notifications", label: "Notifications", icon: Bell, feature: "notifications" as const },
+      { href: "/settings", label: "Settings", icon: Settings, feature: null },
+    ],
+  },
+];
+
+// ─── Section Header ────────────────────────────────────────────────────────────
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600 px-3 pt-5 pb-1 first:pt-2">
+      {title}
+    </p>
+  );
+}
+
+// ─── Nav Link ─────────────────────────────────────────────────────────────────
+
+function NavLink({
+  href,
+  label,
+  icon: Icon,
+  feature,
+  tier,
+  pathname,
+}: {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  feature: string | null;
+  tier: string;
+  pathname: string;
+}) {
+  const isActive = pathname === href;
+  const validTier: Tier = (["FREE", "PRO", "ADVANCED"] as Tier[]).includes(tier as Tier) ? (tier as Tier) : "FREE";
+  const hasAccess = !feature || hasFeatureAccess(validTier, feature as Feature);
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+        isActive
+          ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+          : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white",
+        !hasAccess && "opacity-60"
+      )}
+    >
+      <Icon className="w-5 h-5 flex-shrink-0" />
+      <span className="flex-1">{label}</span>
+      {!hasAccess && <Lock className="w-3 h-3" />}
+    </Link>
+  );
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -88,49 +140,58 @@ export function Sidebar() {
   const role = (session?.user as any)?.role || "EMPLOYEE";
   const isAdmin = role === "MANAGER" || role === "HR";
 
+  const sections = isAdmin ? adminSections : employeeSections;
+
   return (
     <aside className="hidden md:flex md:flex-col w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 min-h-screen">
-      <div className="p-6">
+      {/* Logo */}
+      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
             <span className="text-white font-bold text-sm">W</span>
           </div>
-          <span className="font-bold text-xl text-gray-900 dark:text-white">
-            WorkForce
-          </span>
+          <span className="font-bold text-xl text-gray-900 dark:text-white">WorkForce</span>
         </Link>
       </div>
 
-      <nav className="flex-1 px-4 pb-4 space-y-1">
-        {navItems.map((item) => {
-          // Hide admin-only items from non-admins
-          if (item.adminOnly && !isAdmin) return null;
-
-          const isActive = pathname === item.href;
-          const hasAccess =
-            !item.feature || hasFeatureAccess(tier, item.feature);
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white",
-                !hasAccess && "opacity-60"
-              )}
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              <span className="flex-1">{item.label}</span>
-              {!hasAccess && <Lock className="w-3 h-3" />}
-            </Link>
-          );
-        })}
+      {/* Nav */}
+      <nav className="flex-1 px-4 py-4 overflow-y-auto">
+        {sections.map((section, sIdx) => (
+          <div key={section.title}>
+            <SectionHeader title={section.title} />
+            <div className="space-y-0.5">
+              {section.items.map((item) => (
+                <NavLink
+                  key={item.href}
+                  href={item.href}
+                  label={item.label}
+                  icon={item.icon}
+                  feature={item.feature}
+                  tier={tier}
+                  pathname={pathname}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+      {/* Bottom: role + plan badges */}
+      <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Role:</span>
+          <Badge
+            variant="outline"
+            className={cn(
+              "text-xs",
+              isAdmin
+                ? "border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300"
+                : "border-gray-300 text-gray-600 dark:border-gray-600 dark:text-gray-400"
+            )}
+          >
+            {role}
+          </Badge>
+        </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 dark:text-gray-400">Plan:</span>
           <Badge
