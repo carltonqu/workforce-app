@@ -440,15 +440,19 @@ function CreateAccountModal({
 }: {
   emp: Employee;
   onClose: () => void;
-  onSuccess: (empId: string) => void;
+  onSuccess: (empId: string, username: string) => void;
 }) {
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [created, setCreated] = useState<{ username: string; email: string } | null>(null);
 
   async function handleCreate() {
     setError("");
+    if (!username.trim() || username.trim().length < 3) { setError("Username must be at least 3 characters"); return; }
+    if (!/^[a-zA-Z0-9._]+$/.test(username.trim())) { setError("Username can only contain letters, numbers, dots, and underscores"); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
     if (password !== confirmPassword) { setError("Passwords do not match"); return; }
     setSaving(true);
@@ -456,12 +460,47 @@ function CreateAccountModal({
       const res = await fetch(`/api/admin/employees/${emp.id}/create-account`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username: username.trim().toLowerCase(), password }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Failed to create account"); return; }
-      onSuccess(emp.id);
+      setCreated({ username: data.username, email: data.email });
+      onSuccess(emp.id, data.username);
     } finally { setSaving(false); }
+  }
+
+  if (created) {
+    return (
+      <Modal title="Account Created!" onClose={onClose}
+        footer={<div className="flex justify-end"><Button onClick={onClose} className="bg-blue-600 hover:bg-blue-700 text-white">Done</Button></div>}
+      >
+        <div className="space-y-4 text-center py-2">
+          <div className="w-14 h-14 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-7 h-7 text-green-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900 dark:text-white text-lg">{emp.fullName}</p>
+            <p className="text-sm text-gray-500 mt-1">Login account has been created</p>
+          </div>
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-left space-y-2">
+            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Login Credentials</p>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Username</span>
+              <span className="font-mono font-semibold text-gray-900 dark:text-white">{created.username}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Email</span>
+              <span className="font-medium text-gray-900 dark:text-white">{created.email}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Password</span>
+              <span className="font-mono text-gray-900 dark:text-white">••••••••</span>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400">Share these credentials with the employee so they can log in.</p>
+        </div>
+      </Modal>
+    );
   }
 
   return (
@@ -469,7 +508,7 @@ function CreateAccountModal({
       footer={
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleCreate} disabled={saving || !password || !confirmPassword}
+          <Button onClick={handleCreate} disabled={saving || !username || !password || !confirmPassword}
             className="bg-blue-600 hover:bg-blue-700 text-white">
             {saving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating...</> : "Create Account"}
           </Button>
@@ -477,25 +516,47 @@ function CreateAccountModal({
       }
     >
       <div className="space-y-4">
-        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Employee</p>
-          <p className="font-medium text-gray-900 dark:text-white">{emp.fullName}</p>
-          <p className="text-sm text-gray-500">{emp.email}</p>
+        {/* Employee info */}
+        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+            <User className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <p className="font-medium text-gray-900 dark:text-white text-sm">{emp.fullName}</p>
+            <p className="text-xs text-gray-500">{emp.email}</p>
+          </div>
         </div>
-        <Field label="Password (min. 6 characters)" required>
-          <FInput type="password" placeholder="••••••••" value={password}
+
+        <Field label="Username" required>
+          <FInput
+            placeholder="e.g. juan.delacruz or jdelacruz"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, ""))}
+          />
+          <p className="text-xs text-gray-400 mt-0.5">Letters, numbers, dots, underscores only. Employee will use this to log in.</p>
+        </Field>
+
+        <Field label="Password" required>
+          <FInput type="password" placeholder="Min. 6 characters" value={password}
             onChange={(e) => setPassword(e.target.value)} />
         </Field>
+
         <Field label="Confirm Password" required>
-          <FInput type="password" placeholder="••••••••" value={confirmPassword}
+          <FInput type="password" placeholder="Re-enter password" value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)} />
         </Field>
+
         {error && (
           <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            {error}
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />{error}
           </div>
         )}
+
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            💡 The employee will log in at <strong>/login</strong> using their <strong>username</strong> or email and this password.
+          </p>
+        </div>
       </div>
     </Modal>
   );
@@ -825,10 +886,9 @@ export function EmployeesClient({ user }: { user: any }) {
         <CreateAccountModal
           emp={accountModal.emp}
           onClose={() => setAccountModal(null)}
-          onSuccess={(empId) => {
+          onSuccess={(empId, _username) => {
             setAccountedIds(prev => { const s = new Set(Array.from(prev)); s.add(empId); return s; });
-            setAccountModal(null);
-            showToast("success", "Login account created successfully");
+            // Modal shows success state itself before closing
           }}
         />
       )}
