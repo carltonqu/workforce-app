@@ -27,13 +27,13 @@ import { formatDistanceToNow } from "date-fns";
 
 interface AttendanceRecord {
   id: string;
+  userId?: string;
   employeeName: string;
   department: string | null;
   status: string;
   actualIn: string | null;
   actualOut: string | null;
-  isLate: number;
-  lateMinutes: number;
+  overtimeMinutes?: number;
 }
 
 interface ApprovalItem {
@@ -104,13 +104,15 @@ function LoadingSkeleton() {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    Present: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+    "Clocked In": "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+    Present: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
     Late: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
     Absent: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
-    "On Leave": "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+    "On Leave": "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
   };
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[status] ?? "bg-gray-100 text-gray-700"}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${map[status] ?? "bg-gray-100 text-gray-700"}`}>
+      {status === "Clocked In" && <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />}
       {status}
     </span>
   );
@@ -328,9 +330,9 @@ export function AdminDashboardClient({ user }: { user: any }) {
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Employee</th>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Dept</th>
                       <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Status</th>
-                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">In</th>
-                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Out</th>
-                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Late?</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Clock In</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Clock Out</th>
+                      <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400">Duration</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -341,14 +343,23 @@ export function AdminDashboardClient({ user }: { user: any }) {
                         <td className="px-4 py-2.5">
                           <StatusBadge status={rec.status} />
                         </td>
-                        <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400">{rec.actualIn ?? "—"}</td>
-                        <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400">{rec.actualOut ?? "—"}</td>
+                        <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300 font-mono text-xs">
+                          {rec.actualIn ? new Date(rec.actualIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}
+                        </td>
+                        <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 font-mono text-xs">
+                          {rec.actualOut ? new Date(rec.actualOut).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}
+                        </td>
                         <td className="px-4 py-2.5">
-                          {rec.isLate ? (
-                            <span className="text-yellow-600 text-xs font-medium">+{rec.lateMinutes}m</span>
-                          ) : (
-                            <span className="text-green-600 text-xs">On time</span>
-                          )}
+                          {rec.actualIn ? (
+                            <span className={`text-xs font-medium ${rec.actualOut ? "text-blue-600" : "text-green-600"}`}>
+                              {(() => {
+                                const start = new Date(rec.actualIn).getTime();
+                                const end = rec.actualOut ? new Date(rec.actualOut).getTime() : Date.now();
+                                const mins = Math.floor((end - start) / 60000);
+                                return `${Math.floor(mins / 60)}h ${mins % 60}m${!rec.actualOut ? " ▶" : ""}`;
+                              })()}
+                            </span>
+                          ) : <span className="text-gray-400 text-xs">—</span>}
                         </td>
                       </tr>
                     ))}
