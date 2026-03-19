@@ -293,16 +293,6 @@ export function PayrollClient({
   const [empFilterBranch, setEmpFilterBranch] = useState("");
   const [empFilterDept, setEmpFilterDept] = useState("");
 
-  const filteredEmployees = employees.filter((e) => {
-    if (!empFilterBranch && !empFilterDept) return true;
-    const profile = employeeProfiles?.find(p => p.email === e.email);
-    if (empFilterBranch && profile?.branchLocation !== empFilterBranch) return false;
-    if (empFilterDept && profile?.department !== empFilterDept) return false;
-    return true;
-  });
-
-  const selectedEmployee = employees.find(e => e.id === selectedUserId);
-
   // ── History filters ──
   const [filterBranch, setFilterBranch] = useState("All");
   const [filterDept, setFilterDept] = useState("All");
@@ -321,7 +311,10 @@ export function PayrollClient({
 
   // Step 1
   const [selectedUserId, setSelectedUserId] = useState(
-    isAdmin && employees.length > 0 ? employees[0].id : currentUserId
+    // Pick the first employee that actually has a user account (id !== "")
+    isAdmin
+      ? (employees.find(e => e.id !== "")?.id ?? currentUserId)
+      : currentUserId
   );
   const [periodType, setPeriodType] = useState<"WEEKLY" | "SEMI_MONTHLY" | "MONTHLY">("SEMI_MONTHLY");
   const [periodStart, setPeriodStart] = useState(
@@ -532,6 +525,17 @@ export function PayrollClient({
   const setAtt = useCallback((key: keyof typeof attendance, val: number) => {
     setAttendance((prev) => ({ ...prev, [key]: val }));
   }, []);
+
+  // ─── Derived values (after all hooks) ─────────────────
+  const filteredEmployees = employees.filter((e) => {
+    if (!empFilterBranch && !empFilterDept) return true;
+    const profile = employeeProfiles?.find(p => p.email === e.email);
+    if (empFilterBranch && profile?.branchLocation !== empFilterBranch) return false;
+    if (empFilterDept && profile?.department !== empFilterDept) return false;
+    return true;
+  });
+
+  const selectedEmployee = employees.find(e => e.id === selectedUserId);
 
   // ─── Render ───────────────────────────────────────────
 
