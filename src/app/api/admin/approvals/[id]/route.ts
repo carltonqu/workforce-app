@@ -66,23 +66,44 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
             },
           });
 
-          // Deduct from LeaveBalance if it exists
+          // Upsert LeaveBalance — create row with defaults if missing, then deduct
           try {
+            const leaveType = leave.leaveType as string;
             const balRow = await db.execute({
-              sql: `SELECT * FROM LeaveBalance WHERE userId=? AND leaveType=? LIMIT 1`,
-              args: [empUser.id, leave.leaveType],
+              sql: `SELECT * FROM LeaveBalance WHERE userId=? AND leaveType=? AND year=? LIMIT 1`,
+              args: [empUser.id, leaveType, new Date().getFullYear()],
             });
             const bal = balRow.rows[0];
+
             if (bal) {
+              // Row exists — deduct
               const newUsed = Number(bal.usedDays) + days;
               const newRemaining = Math.max(0, Number(bal.remainingDays) - days);
               await db.execute({
                 sql: `UPDATE LeaveBalance SET usedDays=?, remainingDays=?, updatedAt=? WHERE id=?`,
                 args: [newUsed, newRemaining, now, bal.id],
               });
+            } else {
+              // Row doesn't exist — create with default totals then deduct
+              const defaultTotals: Record<string, number> = {
+                Vacation: 15,
+                Sick: 10,
+                Emergency: 3,
+                Maternity: 105,
+                Paternity: 7,
+                Bereavement: 3,
+              };
+              const totalDays = defaultTotals[leaveType] ?? 15;
+              const usedDays = days;
+              const remainingDays = Math.max(0, totalDays - days);
+              const newId = crypto.randomUUID();
+              await db.execute({
+                sql: `INSERT INTO LeaveBalance (id, userId, leaveType, totalDays, usedDays, remainingDays, year, orgId, updatedAt) VALUES (?,?,?,?,?,?,?,?,?)`,
+                args: [newId, empUser.id, leaveType, totalDays, usedDays, remainingDays, new Date().getFullYear(), empUser.orgId ?? null, now],
+              });
             }
-          } catch {
-            // LeaveBalance deduction failed silently
+          } catch (e) {
+            console.error("LeaveBalance deduction failed:", e);
           }
         } else if (status === "Rejected") {
           await prisma.notification.create({
