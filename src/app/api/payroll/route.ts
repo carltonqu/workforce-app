@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export async function GET(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = (session.user as any).id;
+
+  const entries = await prisma.payrollEntry.findMany({
+    where: { userId },
+    orderBy: { periodEnd: "desc" },
+  });
+
+  return NextResponse.json(entries);
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) {

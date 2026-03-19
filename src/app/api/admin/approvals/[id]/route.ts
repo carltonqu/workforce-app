@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { createClient } from "@libsql/client";
 
 function getDb() {
@@ -9,25 +10,129 @@ function getDb() {
   });
 }
 
+async function findUserByEmployeeId(db: ReturnType<typeof createClient>, employeeId: string) {
+  try {
+    const empRow = await db.execute({
+      sql: `SELECT email FROM Employee WHERE employeeId=? LIMIT 1`,
+      args: [employeeId],
+    });
+    const emp = empRow.rows[0];
+    if (!emp) return null;
+    const user = await prisma.user.findUnique({ where: { email: emp.email as string } });
+    return user;
+  } catch {
+    return null;
+  }
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
-  if (user.role !== "MANAGER" && user.role !== "HR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (user.role !== "MANAGER" && user.role !== "HR")
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const db = getDb();
   const body = await req.json();
   const now = new Date().toISOString();
   const { status, adminComment, isLeave } = body;
+
   if (isLeave) {
     await db.execute({
       sql: `UPDATE LeaveRequest SET status=?, adminComment=?, updatedAt=? WHERE id=?`,
       args: [status, adminComment || null, now, params.id],
     });
+
+    // Fetch leave request for notifications/deductions
+    const leaveRow = await db.execute({
+      sql: `SELECT * FROM LeaveRequest WHERE id=?`,
+      args: [params.id],
+    });
+    const leave = leaveRow.rows[0];
+
+    if (leave) {
+      const empUser = await findUserByEmployeeId(db, leave.employeeId as string);
+
+      // Send notification to employee
+      if (empUser) {
+        const days = Number(leave.days);
+        const dayLabel = days !== 1 ? "days" : "day";
+        if (status === "Approved") {
+          await prisma.notification.create({
+            data: {
+              userId: empUser.id,
+              type: "LEAVE_APPROVED",
+              message: `Your ${leave.leaveType} leave request (${days} ${dayLabel}) from ${leave.startDate} to ${leave.endDate} has been Approved.`,
+            },
+          });
+
+          // Deduct from LeaveBalance if it exists
+          try {
+            const balRow = await db.execute({
+              sql: `SELECT * FROM LeaveBalance WHERE userId=? AND leaveType=? LIMIT 1`,
+              args: [empUser.id, leave.leaveType],
+            });
+            const bal = balRow.rows[0];
+            if (bal) {
+              const newUsed = Number(bal.usedDays) + days;
+              const newRemaining = Math.max(0, Number(bal.remainingDays) - days);
+              await db.execute({
+                sql: `UPDATE LeaveBalance SET usedDays=?, remainingDays=?, updatedAt=? WHERE id=?`,
+                args: [newUsed, newRemaining, now, bal.id],
+              });
+            }
+          } catch {
+            // LeaveBalance deduction failed silently
+          }
+        } else if (status === "Rejected") {
+          await prisma.notification.create({
+            data: {
+              userId: empUser.id,
+              type: "LEAVE_REJECTED",
+              message: `Your ${leave.leaveType} leave request from ${leave.startDate} to ${leave.endDate} has been Rejected.${adminComment ? " Note: " + adminComment : ""}`,
+            },
+          });
+        }
+      }
+    }
   } else {
     await db.execute({
       sql: `UPDATE ApprovalRequest SET status=?, adminComment=?, updatedAt=? WHERE id=?`,
       args: [status, adminComment || null, now, params.id],
     });
+
+    // Send notification for non-leave approval requests (OT, etc.)
+    const requestRow = await db.execute({
+      sql: `SELECT * FROM ApprovalRequest WHERE id=?`,
+      args: [params.id],
+    });
+    const request = requestRow.rows[0];
+
+    if (request) {
+      const empUser = await findUserByEmployeeId(db, request.employeeId as string);
+      if (empUser) {
+        const requestType = request.requestType as string;
+        const isOTRequest =
+          requestType?.toLowerCase().includes("ot") ||
+          requestType?.toLowerCase().includes("overtime");
+
+        let message: string;
+        if (isOTRequest && status === "Approved") {
+          message = "Your overtime request has been approved. You may now clock in for OT.";
+        } else {
+          message = `Your ${requestType} request has been ${status}.${adminComment ? " Note: " + adminComment : ""}`;
+        }
+
+        await prisma.notification.create({
+          data: {
+            userId: empUser.id,
+            type: `REQUEST_${status.toUpperCase()}`,
+            message,
+          },
+        });
+      }
+    }
   }
+
   return NextResponse.json({ success: true });
 }

@@ -136,6 +136,9 @@ export function ClockClient() {
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [duration, setDuration] = useState("");
   const [undertimeInfo, setUndertimeInfo] = useState<UndertimeInfo | null>(null);
+  const [isOTMode, setIsOTMode] = useState(false);
+  const [otWarningShown, setOtWarningShown] = useState(false);
+  const [eightHourToastShown, setEightHourToastShown] = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -169,16 +172,59 @@ export function ClockClient() {
     return () => clearInterval(interval);
   }, []);
 
-  // Duration ticker
+  // Duration ticker + 8h reminder (regular shift)
   useEffect(() => {
-    if (!activeEntry) { setDuration(""); return; }
-    const interval = setInterval(() => setDuration(formatDuration(activeEntry.clockIn)), 1000);
-    setDuration(formatDuration(activeEntry.clockIn));
+    if (!activeEntry) { setDuration(""); setEightHourToastShown(false); return; }
+    const hasCompletedShift = todayEntries.some(e => e.clockOut !== null);
+    const tick = () => {
+      setDuration(formatDuration(activeEntry.clockIn));
+      if (!hasCompletedShift) {
+        const workedMinutes = Math.floor((Date.now() - new Date(activeEntry.clockIn).getTime()) / 60000);
+        if (workedMinutes >= 480 && !eightHourToastShown) {
+          setEightHourToastShown(true);
+          showToast("success", "✅ 8 hours complete! You can clock out now.");
+        }
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [activeEntry]);
+  }, [activeEntry, todayEntries, eightHourToastShown]);
+
+  // OT 2-hour warning
+  useEffect(() => {
+    if (!activeEntry) { setOtWarningShown(false); return; }
+    const hasCompletedShift = todayEntries.some(e => e.clockOut !== null);
+    if (!hasCompletedShift) return; // regular shift, no OT warning needed
+
+    const interval = setInterval(() => {
+      const otMinutes = Math.floor((Date.now() - new Date(activeEntry.clockIn).getTime()) / 60000);
+      if (otMinutes >= 120 && !otWarningShown) {
+        setOtWarningShown(true);
+        showToast("error", "⚠️ 2 hours of overtime reached! Please clock out soon.");
+        // Auto clock-out after 2 minutes if no action
+        setTimeout(async () => {
+          const statusRes = await fetch("/api/time-entries/status");
+          const statusData = await statusRes.json();
+          if (statusData.activeEntry) {
+            await fetch("/api/time-entries/clock-out", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ undertimeConfirmed: true }),
+            });
+            showToast("error", "Auto clocked out after 2 hours of overtime.");
+            loadStatus();
+          }
+        }, 2 * 60 * 1000);
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [activeEntry, todayEntries, otWarningShown, loadStatus]);
 
   async function handleClockIn() {
     setProcessing(true);
+    setIsOTMode(false);
     try {
       const res = await fetch("/api/time-entries/clock-in", {
         method: "POST",
@@ -188,6 +234,23 @@ export function ClockClient() {
       const data = await res.json();
       if (!res.ok) { showToast("error", data.error || "Failed to clock in"); return; }
       showToast("success", "Clocked in successfully!");
+      await loadStatus();
+    } finally { setProcessing(false); }
+  }
+
+  async function handleOTClockIn() {
+    setProcessing(true);
+    setIsOTMode(true);
+    setOtWarningShown(false);
+    try {
+      const res = await fetch("/api/time-entries/clock-in", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast("error", data.error || "Failed to clock in for OT"); return; }
+      showToast("success", "OT clock-in recorded!");
       await loadStatus();
     } finally { setProcessing(false); }
   }
@@ -331,14 +394,31 @@ export function ClockClient() {
             </div>
             <p className="text-gray-400 text-sm mb-6">Tap the button to start your shift</p>
             {statusText && <p className={`text-sm font-medium mb-4 ${statusColor}`}>{statusText}</p>}
-            <button
-              onClick={handleClockIn}
-              disabled={processing}
-              className="w-full py-4 bg-green-600 hover:bg-green-700 text-white text-lg font-bold rounded-xl transition disabled:opacity-60 flex items-center justify-center gap-2"
-            >
-              {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-              {processing ? "Processing..." : "CLOCK IN"}
-            </button>
+            {todayEntries.some(e => e.clockOut !== null) ? (
+              <div className="space-y-3">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+                  <p className="text-sm font-semibold text-amber-800">Regular shift complete</p>
+                  <p className="text-xs text-amber-600 mt-0.5">You can clock in for overtime if approved</p>
+                </div>
+                <button
+                  onClick={handleOTClockIn}
+                  disabled={processing}
+                  className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-white text-lg font-bold rounded-xl transition disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                  {processing ? "Processing..." : "OT CLOCK IN"}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleClockIn}
+                disabled={processing}
+                className="w-full py-4 bg-green-600 hover:bg-green-700 text-white text-lg font-bold rounded-xl transition disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+                {processing ? "Processing..." : "CLOCK IN"}
+              </button>
+            )}
           </>
         )}
       </div>

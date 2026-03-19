@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+function formatDate(d: Date): string {
+  return d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -21,6 +25,10 @@ export async function POST(
     return NextResponse.json({ error: "Only APPROVED entries can be released" }, { status: 400 });
   }
 
+  const periodStartFormatted = formatDate(entry.periodStart);
+  const periodEndFormatted = formatDate(entry.periodEnd);
+  const netPayFormatted = entry.netPay.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const [updated] = await Promise.all([
     prisma.payrollEntry.update({
       where: { id },
@@ -31,7 +39,7 @@ export async function POST(
       data: {
         userId: entry.userId,
         type: "PAYROLL_RELEASED",
-        message: `Your payroll has been released. Net pay: ₱${entry.netPay.toLocaleString("en-PH", { minimumFractionDigits: 2 })}`,
+        message: `Your payslip for the period ${periodStartFormatted} – ${periodEndFormatted} is now available. Net Pay: ₱${netPayFormatted}. View it in My Payslips.`,
       },
     }),
   ]);
