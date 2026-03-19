@@ -691,7 +691,7 @@ export function SchedulingClient({
   orgId,
   weekStart,
 }: SchedulingClientProps) {
-  const [activeTab, setActiveTab] = useState<"group-schedule" | "roster" | "employee-shifts">("group-schedule");
+  const [activeTab, setActiveTab] = useState<"group-schedule" | "employee-shifts">("group-schedule");
   const [shifts, setShifts] = useState<Shift[]>(initialShifts);
   const [saving, setSaving] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -806,174 +806,12 @@ export function SchedulingClient({
         >
           Individual
         </button>
-        <button
-          onClick={() => setActiveTab("roster")}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            activeTab === "roster"
-              ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-          }`}
-        >
-          Weekly View
-        </button>
       </div>
 
       {activeTab === "group-schedule" ? (
         <GroupScheduleTab />
-      ) : activeTab === "employee-shifts" ? (
-        <EmployeeShiftsTab />
       ) : (
-        <>
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Week of{" "}
-                {new Date(weekStart).toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </h2>
-              <p className="text-sm text-gray-500">
-                Drag shifts between days to reschedule
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowAddForm(!showAddForm)}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Shift
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                {saving ? "Saving..." : "Save Schedule"}
-              </Button>
-            </div>
-          </div>
-
-          {/* Add Shift Form */}
-          {showAddForm && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Add New Shift</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Employee</label>
-                    <select
-                      value={newShift.employeeId}
-                      onChange={(e) => setNewShift({ ...newShift, employeeId: e.target.value })}
-                      className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800"
-                    >
-                      {employees.map((e) => (
-                        <option key={e.id} value={e.id}>{e.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Day</label>
-                    <select
-                      value={newShift.day}
-                      onChange={(e) => setNewShift({ ...newShift, day: e.target.value })}
-                      className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800"
-                    >
-                      {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Start</label>
-                    <input
-                      type="time"
-                      value={newShift.startTime}
-                      onChange={(e) => setNewShift({ ...newShift, startTime: e.target.value })}
-                      className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">End</label>
-                    <input
-                      type="time"
-                      value={newShift.endTime}
-                      onChange={(e) => setNewShift({ ...newShift, endTime: e.target.value })}
-                      className="w-full text-sm border border-gray-300 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800"
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <Button size="sm" onClick={handleAddShift} className="bg-blue-600 hover:bg-blue-700 text-white">
-                    Add Shift
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setShowAddForm(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Schedule Grid */}
-          <DndContext
-            sensors={sensors}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDragOver={handleDragOver}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
-              {DAYS.map((day) => {
-                const dayShifts = shifts.filter((s) => s.day === day);
-                return (
-                  <SortableContext
-                    key={day}
-                    id={day}
-                    items={dayShifts.map((s) => s.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div
-                      className="min-h-32 p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl"
-                    >
-                      <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                        {day.slice(0, 3)}
-                      </h3>
-                      <div className="space-y-2">
-                        {dayShifts.map((shift) => (
-                          <ShiftCard
-                            key={shift.id}
-                            shift={shift}
-                            onDelete={handleDelete}
-                          />
-                        ))}
-                        {dayShifts.length === 0 && (
-                          <p className="text-xs text-gray-400 text-center py-4">
-                            No shifts
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </SortableContext>
-                );
-              })}
-            </div>
-
-            <DragOverlay>
-              {activeShift ? (
-                <div className="p-2 bg-white dark:bg-gray-800 border border-blue-500 rounded-lg shadow-lg opacity-90">
-                  <p className="text-xs font-medium">{activeShift.employeeName}</p>
-                  <p className="text-xs text-gray-500">
-                    {activeShift.startTime} — {activeShift.endTime}
-                  </p>
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        </>
+        <EmployeeShiftsTab />
       )}
     </div>
   );
