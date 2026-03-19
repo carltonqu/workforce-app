@@ -52,6 +52,7 @@ const adminSections = [
     items: [
       { href: "/payroll", label: "Payroll", icon: DollarSign, feature: "payroll" as const },
       { href: "/reports", label: "Reports", icon: BarChart2, feature: "reports" as const },
+      { href: "/finance", label: "Finance Summary", icon: TrendingUp, feature: null },
     ],
   },
   {
