@@ -121,6 +121,22 @@ function LoginForm() {
                   "Sign in"
                 )}
               </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full mt-2"
+                onClick={() => signIn("google", { callbackUrl: redirect })}
+              >
+                Continue with Google
+              </Button>
+
+              <Link
+                href="/signup"
+                className="block text-center text-sm text-blue-600 hover:underline mt-3"
+              >
+                Create admin account (email verification)
+              </Link>
             </form>
 
             {/* Demo accounts */}

@@ -196,7 +196,7 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
   const publishedAnnouncements = announcements.filter(a => a.status === "published");
   const queuedAnnouncements = announcements.filter(a => a.status !== "published");
 
-  const PostForm = () => (
+  const postFormNode = (
     <Card className="border-blue-200 dark:border-blue-800">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -204,7 +204,7 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
             <Edit2 className="w-4 h-4 text-blue-600" />
             {editingId ? "Edit Announcement" : "New Announcement"}
           </CardTitle>
-          <button onClick={resetForm} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+          <button type="button" onClick={resetForm} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -243,6 +243,7 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
               <div className="relative">
                 <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg border" />
                 <button
+                  type="button"
                   onClick={() => { setImagePreview(""); setForm(f => ({ ...f, imageBase64: "" })); }}
                   className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs"
                 >×</button>
@@ -279,6 +280,7 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
               { value: "draft", label: "📋 Save as Draft", color: "border-gray-400 bg-gray-50 text-gray-700" },
             ] as const).map(opt => (
               <button
+                type="button"
                 key={opt.value}
                 onClick={() => setForm(f => ({ ...f, status: opt.value }))}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${form.status === opt.value ? opt.color + " ring-1 ring-offset-1 ring-current" : "border-gray-200 bg-white dark:bg-gray-800 text-gray-500 dark:border-gray-600"}`}
@@ -303,8 +305,8 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
 
         {/* Actions */}
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={resetForm}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={posting} className="bg-blue-600 hover:bg-blue-700 text-white">
+          <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
+          <Button type="button" onClick={handleSubmit} disabled={posting} className="bg-blue-600 hover:bg-blue-700 text-white">
             {posting ? "Saving..." : editingId ? "Update" : form.status === "published" ? "Post Now" : form.status === "scheduled" ? "Schedule" : "Save Draft"}
           </Button>
         </div>
@@ -437,7 +439,7 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
       </div>
 
       {/* Post form */}
-      {isAdmin && showForm && <PostForm />}
+      {isAdmin && showForm && postFormNode}
 
       {/* Tabs (admin only) */}
       {isAdmin && !showForm && (
