@@ -58,7 +58,6 @@ const adminSections = [
   {
     title: "System",
     items: [
-      { href: "/notifications", label: "Notifications", icon: Bell, feature: "notifications" as const },
       { href: "/settings", label: "Settings", icon: Settings, feature: null },
     ],
   },
@@ -105,7 +104,6 @@ const employeeSections = [
     title: "Account",
     items: [
       { href: "/my-profile", label: "My Profile", icon: UserIcon, feature: null },
-      { href: "/notifications", label: "Notifications", icon: Bell, feature: "notifications" as const },
     ],
   },
 ];
