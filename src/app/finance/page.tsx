@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { FinanceClient } from "./finance-client";
 
 export default async function FinancePage() {
@@ -22,9 +23,11 @@ export default async function FinancePage() {
   });
 
   return (
-    <FinanceClient
-      payrollEntries={payrollEntries as never}
-      employees={employees as never}
-    />
+    <DashboardLayout title="Finance Summary">
+      <FinanceClient
+        payrollEntries={payrollEntries as never}
+        employees={employees as never}
+      />
+    </DashboardLayout>
   );
 }

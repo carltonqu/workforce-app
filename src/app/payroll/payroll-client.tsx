@@ -69,10 +69,18 @@ interface HolidayRow {
   type: string;
 }
 
+interface EmployeeProfile {
+  email: string;
+  branchLocation: string | null;
+  department: string | null;
+  fullName: string;
+}
+
 interface PayrollClientProps {
   employees: EmployeeOption[];
   payrollEntries: PayrollEntryRow[];
   holidays: HolidayRow[];
+  employeeProfiles?: EmployeeProfile[];
   currentUserId: string;
   userRole: string;
 }
@@ -271,6 +279,7 @@ export function PayrollClient({
   employees,
   payrollEntries: initialEntries,
   holidays: initialHolidays,
+  employeeProfiles = [],
   currentUserId,
   userRole,
 }: PayrollClientProps) {
@@ -278,6 +287,15 @@ export function PayrollClient({
   const [tab, setTab] = useState<"run" | "history" | "holidays">("run");
   const [entries, setEntries] = useState<PayrollEntryRow[]>(initialEntries);
   const [holidays, setHolidays] = useState<HolidayRow[]>(initialHolidays);
+
+  // ── History filters ──
+  const [filterBranch, setFilterBranch] = useState("All");
+  const [filterDept, setFilterDept] = useState("All");
+  const [filterStatus, setFilterStatus] = useState("All");
+
+  // derive unique branches and departments from profiles
+  const branches = ["All", ...Array.from(new Set(employeeProfiles.map(p => p.branchLocation).filter(Boolean) as string[]))];
+  const departments = ["All", ...Array.from(new Set(employeeProfiles.map(p => p.department).filter(Boolean) as string[]))];
 
   // ── Run Payroll Wizard ──
   const [step, setStep] = useState(1);
@@ -294,7 +312,12 @@ export function PayrollClient({
   const [periodStart, setPeriodStart] = useState(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0]
   );
-  const periodEnd = periodEndDate(periodStart, periodType);
+  const [periodEnd, setPeriodEnd] = useState(
+    periodEndDate(
+      new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0],
+      "SEMI_MONTHLY"
+    )
+  );
 
   // Step 2 - attendance
   const [attendance, setAttendance] = useState({
@@ -567,7 +590,11 @@ export function PayrollClient({
                 <Field label="Period Type">
                   <select
                     value={periodType}
-                    onChange={(e) => setPeriodType(e.target.value as "WEEKLY" | "SEMI_MONTHLY" | "MONTHLY")}
+                    onChange={(e) => {
+                      const t = e.target.value as "WEEKLY" | "SEMI_MONTHLY" | "MONTHLY";
+                      setPeriodType(t);
+                      setPeriodEnd(periodEndDate(periodStart, t));
+                    }}
                     className={selectCls}
                   >
                     <option value="WEEKLY">Weekly</option>
@@ -580,12 +607,20 @@ export function PayrollClient({
                     <input
                       type="date"
                       value={periodStart}
-                      onChange={(e) => setPeriodStart(e.target.value)}
+                      onChange={(e) => {
+                        setPeriodStart(e.target.value);
+                        setPeriodEnd(periodEndDate(e.target.value, periodType));
+                      }}
                       className={inputCls}
                     />
                   </Field>
-                  <Field label="Period End (auto)">
-                    <input type="date" value={periodEnd} readOnly className={inputCls + " opacity-60"} />
+                  <Field label="Period End">
+                    <input
+                      type="date"
+                      value={periodEnd}
+                      onChange={(e) => setPeriodEnd(e.target.value)}
+                      className={inputCls}
+                    />
                   </Field>
                 </div>
                 <div className="flex justify-end">
@@ -773,20 +808,73 @@ export function PayrollClient({
       {/* ── Tab 2: History ── */}
       {tab === "history" && (
         <div className="space-y-4">
-          {entries.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <DollarSign className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p className="text-gray-500">No payroll entries yet</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <>
+          {/* Filters */}
+          {isAdmin && (
+            <div className="flex flex-wrap gap-3 items-center">
+              <select
+                value={filterBranch}
+                onChange={(e) => setFilterBranch(e.target.value)}
+                className={selectCls}
+              >
+                {branches.map((b) => <option key={b} value={b}>{b === "All" ? "All Branches" : b}</option>)}
+              </select>
+              <select
+                value={filterDept}
+                onChange={(e) => setFilterDept(e.target.value)}
+                className={selectCls}
+              >
+                {departments.map((d) => <option key={d} value={d}>{d === "All" ? "All Departments" : d}</option>)}
+              </select>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className={selectCls}
+              >
+                <option value="All">All Status</option>
+                <option value="DRAFT">Draft</option>
+                <option value="APPROVED">Approved</option>
+                <option value="RELEASED">Released</option>
+              </select>
+              {(filterBranch !== "All" || filterDept !== "All" || filterStatus !== "All") && (
+                <button
+                  onClick={() => { setFilterBranch("All"); setFilterDept("All"); setFilterStatus("All"); }}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          )}
+
+          {(() => {
+            const filteredEntries = entries.filter((e) => {
+              if (filterStatus !== "All" && e.status !== filterStatus) return false;
+              if (filterBranch !== "All" || filterDept !== "All") {
+                const profile = employeeProfiles.find(p => p.email === e.user?.email);
+                if (filterBranch !== "All" && profile?.branchLocation !== filterBranch) return false;
+                if (filterDept !== "All" && profile?.department !== filterDept) return false;
+              }
+              return true;
+            });
+
+            if (filteredEntries.length === 0) {
+              return (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <DollarSign className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p className="text-gray-500">{entries.length === 0 ? "No payroll entries yet" : "No entries match the selected filters"}</p>
+                  </CardContent>
+                </Card>
+              );
+            }
+
+            return (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-gray-500 border-b dark:border-gray-700">
                       <th className="pb-2 font-medium">Employee</th>
+                      <th className="pb-2 font-medium">Branch</th>
                       <th className="pb-2 font-medium">Period</th>
                       <th className="pb-2 font-medium text-right">Gross Pay</th>
                       <th className="pb-2 font-medium text-right">Deductions</th>
@@ -796,7 +884,8 @@ export function PayrollClient({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {entries.map((e) => {
+                    {filteredEntries.map((e) => {
+                      const profile = employeeProfiles.find(p => p.email === e.user?.email);
                       const deductions =
                         e.sssEmployee +
                         e.philhealthEmployee +
@@ -808,7 +897,13 @@ export function PayrollClient({
                         e.absenceDeduction;
                       return (
                         <tr key={e.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                          <td className="py-2 font-medium">{e.user?.name ?? "—"}</td>
+                          <td className="py-2 font-medium">
+                            <div>{e.user?.name ?? "—"}</div>
+                            {profile?.department && (
+                              <div className="text-xs text-gray-400">{profile.department}</div>
+                            )}
+                          </td>
+                          <td className="py-2 text-xs text-gray-500">{profile?.branchLocation ?? "—"}</td>
                           <td className="py-2 text-gray-500 text-xs">
                             {new Date(e.periodStart).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}
                             {" – "}
@@ -855,19 +950,19 @@ export function PayrollClient({
                   </tbody>
                   <tfoot>
                     <tr className="border-t dark:border-gray-700 font-semibold text-sm">
-                      <td colSpan={2} className="pt-2 text-gray-500">Totals ({entries.length} entries)</td>
-                      <td className="pt-2 text-right">{fmt(entries.reduce((s, e) => s + e.grossPay, 0))}</td>
+                      <td colSpan={3} className="pt-2 text-gray-500">Totals ({filteredEntries.length} entries)</td>
+                      <td className="pt-2 text-right">{fmt(filteredEntries.reduce((s, e) => s + e.grossPay, 0))}</td>
                       <td className="pt-2 text-right text-red-500">
-                        {fmt(entries.reduce((s, e) => s + e.sssEmployee + e.philhealthEmployee + e.pagibigEmployee + e.withholdingTax + e.totalOtherDeductions + e.lateDeduction + e.undertimeDeduction + e.absenceDeduction, 0))}
+                        {fmt(filteredEntries.reduce((s, e) => s + e.sssEmployee + e.philhealthEmployee + e.pagibigEmployee + e.withholdingTax + e.totalOtherDeductions + e.lateDeduction + e.undertimeDeduction + e.absenceDeduction, 0))}
                       </td>
-                      <td className="pt-2 text-right text-green-600">{fmt(entries.reduce((s, e) => s + e.netPay, 0))}</td>
+                      <td className="pt-2 text-right text-green-600">{fmt(filteredEntries.reduce((s, e) => s + e.netPay, 0))}</td>
                       <td colSpan={2} />
                     </tr>
                   </tfoot>
                 </table>
               </div>
-            </>
-          )}
+            );
+          })()}
         </div>
       )}
 

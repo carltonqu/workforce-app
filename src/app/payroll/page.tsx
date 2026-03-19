@@ -32,6 +32,14 @@ export default async function PayrollPage() {
       })
     : [];
 
+  // Fetch employee profiles for branch/department grouping
+  const employeeProfiles = isAdmin
+    ? await prisma.employee.findMany({
+        select: { email: true, branchLocation: true, department: true, fullName: true },
+        orderBy: { fullName: "asc" },
+      })
+    : [];
+
   // Fetch payroll entries
   const payrollEntriesRaw = isAdmin
     ? await prisma.payrollEntry.findMany({
@@ -78,6 +86,7 @@ export default async function PayrollPage() {
         employees={employees}
         payrollEntries={payrollEntries}
         holidays={holidays}
+        employeeProfiles={employeeProfiles}
         currentUserId={user.id}
         userRole={user.role}
       />
