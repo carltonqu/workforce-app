@@ -23,8 +23,8 @@ export default async function PayrollPage() {
 
   const isAdmin = user.role === "MANAGER" || user.role === "HR";
 
-  // Fetch employees list for admin dropdown
-  const employees = isAdmin
+  // Fetch User accounts (have login + can process payroll)
+  const userAccounts = isAdmin
     ? await prisma.user.findMany({
         where: user.orgId ? { orgId: user.orgId } : {},
         select: { id: true, name: true, email: true, role: true },
@@ -32,13 +32,41 @@ export default async function PayrollPage() {
       })
     : [];
 
-  // Fetch employee profiles for branch/department grouping
+  // Fetch ALL Employee profiles (includes those without user accounts)
   const employeeProfiles = isAdmin
     ? await prisma.employee.findMany({
-        select: { email: true, branchLocation: true, department: true, fullName: true },
+        select: {
+          email: true,
+          branchLocation: true,
+          department: true,
+          fullName: true,
+          employmentStatus: true,
+          salaryRate: true,
+          payrollType: true,
+        },
         orderBy: { fullName: "asc" },
       })
     : [];
+
+  // Build merged employee list for payroll dropdown:
+  // - Start with User accounts (they have an id for payroll processing)
+  // - Add Employee profiles that have no matching User account yet (show as "no account" — can't process payroll but visible)
+  const userEmailSet = new Set(userAccounts.map((u) => u.email));
+
+  const employeesWithoutAccount = employeeProfiles
+    .filter((ep) => ep.employmentStatus !== "Terminated" && !userEmailSet.has(ep.email))
+    .map((ep) => ({
+      id: "", // no user account yet
+      name: ep.fullName,
+      email: ep.email,
+      role: "EMPLOYEE",
+      hasNoAccount: true,
+    }));
+
+  const employees = [
+    ...userAccounts.map((u) => ({ ...u, hasNoAccount: false })),
+    ...employeesWithoutAccount,
+  ];
 
   // Fetch payroll entries
   const payrollEntriesRaw = isAdmin

@@ -31,6 +31,7 @@ interface EmployeeOption {
   name: string;
   email: string;
   role: string;
+  hasNoAccount?: boolean;
 }
 
 interface PayrollEntryRow {
@@ -287,6 +288,20 @@ export function PayrollClient({
   const [tab, setTab] = useState<"run" | "history" | "holidays">("run");
   const [entries, setEntries] = useState<PayrollEntryRow[]>(initialEntries);
   const [holidays, setHolidays] = useState<HolidayRow[]>(initialHolidays);
+
+  // ── Employee dropdown filters (Run Payroll step 1) ──
+  const [empFilterBranch, setEmpFilterBranch] = useState("");
+  const [empFilterDept, setEmpFilterDept] = useState("");
+
+  const filteredEmployees = employees.filter((e) => {
+    if (!empFilterBranch && !empFilterDept) return true;
+    const profile = employeeProfiles?.find(p => p.email === e.email);
+    if (empFilterBranch && profile?.branchLocation !== empFilterBranch) return false;
+    if (empFilterDept && profile?.department !== empFilterDept) return false;
+    return true;
+  });
+
+  const selectedEmployee = employees.find(e => e.id === selectedUserId);
 
   // ── History filters ──
   const [filterBranch, setFilterBranch] = useState("All");
@@ -573,19 +588,56 @@ export function PayrollClient({
             {step === 1 && (
               <>
                 {isAdmin && employees.length > 0 && (
-                  <Field label="Employee">
-                    <select
-                      value={selectedUserId}
-                      onChange={(e) => setSelectedUserId(e.target.value)}
-                      className={selectCls}
-                    >
-                      {employees.map((e) => (
-                        <option key={e.id} value={e.id}>
-                          {e.name} ({e.email})
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
+                  <div className="space-y-2">
+                    {/* Branch / Dept filter for employee dropdown */}
+                    <div className="flex gap-2">
+                      <select
+                        value={empFilterBranch}
+                        onChange={(e) => setEmpFilterBranch(e.target.value)}
+                        className={selectCls + " flex-1"}
+                      >
+                        <option value="">All Branches</option>
+                        {Array.from(new Set(employeeProfiles.map(p => p.branchLocation).filter(Boolean) as string[])).sort().map(b => (
+                          <option key={b} value={b}>{b}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={empFilterDept}
+                        onChange={(e) => setEmpFilterDept(e.target.value)}
+                        className={selectCls + " flex-1"}
+                      >
+                        <option value="">All Departments</option>
+                        {Array.from(new Set(employeeProfiles.map(p => p.department).filter(Boolean) as string[])).sort().map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <Field label={`Employee (${filteredEmployees.length} shown)`}>
+                      <select
+                        value={selectedUserId}
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        className={selectCls}
+                      >
+                        <option value="">— Select employee —</option>
+                        {filteredEmployees.map((e) => (
+                          <option key={e.id || e.email} value={e.id} disabled={!e.id}>
+                            {e.name}{e.hasNoAccount ? " ⚠ no account" : ""} · {e.email}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    {/* Warning if selected employee has no account */}
+                    {selectedUserId === "" && filteredEmployees.some(e => !e.id) && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        ⚠ Employees marked "no account" need a login account created before payroll can be processed.
+                      </p>
+                    )}
+                    {selectedEmployee?.hasNoAccount && (
+                      <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                        ⚠ This employee has no login account yet. Create one in the Employees page first, then payroll can be processed.
+                      </div>
+                    )}
+                  </div>
                 )}
                 <Field label="Period Type">
                   <select
