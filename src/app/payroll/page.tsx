@@ -94,18 +94,64 @@ export default async function PayrollPage() {
   });
 
   const payrollEntries = payrollEntriesRaw.map((p) => ({
-    ...p,
+    id: p.id,
+    userId: p.userId,
     periodStart: p.periodStart.toISOString(),
     periodEnd: p.periodEnd.toISOString(),
-    createdAt: p.createdAt.toISOString(),
-    updatedAt: p.updatedAt.toISOString(),
+    periodType: p.periodType,
+    status: p.status,
+    rateType: p.rateType,
+    rate: p.rate,
+    dailyRate: p.dailyRate,
+    hourlyRate: p.hourlyRate,
+    daysWorked: p.daysWorked,
+    hoursWorked: p.hoursWorked,
+    lateMinutes: p.lateMinutes,
+    undertimeMinutes: p.undertimeMinutes,
+    absenceDays: p.absenceDays,
+    basicPay: p.basicPay,
+    lateDeduction: p.lateDeduction,
+    undertimeDeduction: p.undertimeDeduction,
+    absenceDeduction: p.absenceDeduction,
+    otPay: p.otPay,
+    nightDiffPay: p.nightDiffPay,
+    holidayPay: p.holidayPay,
+    allowancesJson: p.allowancesJson,
+    totalAllowances: p.totalAllowances,
+    grossPay: p.grossPay,
+    sssEmployee: p.sssEmployee,
+    sssEmployer: p.sssEmployer,
+    philhealthEmployee: p.philhealthEmployee,
+    philhealthEmployer: p.philhealthEmployer,
+    pagibigEmployee: p.pagibigEmployee,
+    pagibigEmployer: p.pagibigEmployer,
+    withholdingTax: p.withholdingTax,
+    taxableIncome: p.taxableIncome,
+    otherDeductionsJson: p.otherDeductionsJson,
+    totalOtherDeductions: p.totalOtherDeductions,
+    netPay: p.netPay,
+    regularHours: p.regularHours,
+    overtimeHours: p.overtimeHours,
+    payRate: p.payRate,
+    deductions: p.deductions,
+    total: p.total,
+    notes: p.notes ?? null,
+    user: p.user ?? null,
   }));
 
   const holidays = holidaysRaw.map((h) => ({
-    ...h,
+    id: h.id,
+    name: h.name,
+    type: h.type,
+    orgId: h.orgId ?? null,
     date: h.date.toISOString(),
-    createdAt: h.createdAt.toISOString(),
-    updatedAt: h.updatedAt.toISOString(),
+  }));
+
+  const safeEmployeeProfiles = employeeProfiles.map((ep) => ({
+    email: ep.email,
+    branchLocation: ep.branchLocation ?? null,
+    department: ep.department ?? null,
+    fullName: ep.fullName,
   }));
 
   return (
@@ -114,7 +160,7 @@ export default async function PayrollPage() {
         employees={employees}
         payrollEntries={payrollEntries}
         holidays={holidays}
-        employeeProfiles={employeeProfiles}
+        employeeProfiles={safeEmployeeProfiles}
         currentUserId={user.id}
         userRole={user.role}
       />
