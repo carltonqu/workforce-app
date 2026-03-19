@@ -86,6 +86,52 @@ function FSelect({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectEl
   return <select className={inputCls} {...props}>{children}</select>;
 }
 
+function SmartSelect({
+  value, onChange, options, placeholder
+}: {
+  value: string; onChange: (v: string) => void; options: string[]; placeholder: string
+}) {
+  const [addingNew, setAddingNew] = useState(false);
+  const [newVal, setNewVal] = useState("");
+
+  if (addingNew) {
+    return (
+      <div className="flex gap-2">
+        <input
+          autoFocus
+          className={inputCls + " flex-1"}
+          placeholder={`New ${placeholder}`}
+          value={newVal}
+          onChange={e => setNewVal(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter" && newVal.trim()) { onChange(newVal.trim()); setAddingNew(false); setNewVal(""); }
+            if (e.key === "Escape") { setAddingNew(false); setNewVal(""); }
+          }}
+        />
+        <button type="button" onClick={() => { if (newVal.trim()) { onChange(newVal.trim()); setAddingNew(false); setNewVal(""); } }}
+          className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm">Add</button>
+        <button type="button" onClick={() => { setAddingNew(false); setNewVal(""); }}
+          className="px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-700 dark:text-gray-300">Cancel</button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      className={inputCls}
+      value={value}
+      onChange={e => {
+        if (e.target.value === "__new__") { setAddingNew(true); }
+        else { onChange(e.target.value); }
+      }}
+    >
+      <option value="">— Select {placeholder} —</option>
+      {options.map(o => <option key={o} value={o}>{o}</option>)}
+      <option value="__new__">＋ Add new {placeholder}...</option>
+    </select>
+  );
+}
+
 // ─── Toast ────────────────────────────────────────────────────────────────────
 
 function Toast({ type, message, onClose }: { type: "success" | "error"; message: string; onClose: () => void }) {
@@ -183,7 +229,12 @@ function PersonalTab({ form, setForm }: { form: FormState; setForm: React.Dispat
   );
 }
 
-function EmploymentTab({ form, setForm }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>> }) {
+function EmploymentTab({ form, setForm, departments, branches }: {
+  form: FormState;
+  setForm: React.Dispatch<React.SetStateAction<FormState>>;
+  departments: string[];
+  branches: string[];
+}) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <Field label="Hire Date">
@@ -199,16 +250,24 @@ function EmploymentTab({ form, setForm }: { form: FormState; setForm: React.Disp
         </FSelect>
       </Field>
       <Field label="Department">
-        <FInput placeholder="Engineering, HR, Sales..." value={form.department}
-          onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} />
+        <SmartSelect
+          value={form.department}
+          onChange={(v) => setForm((f) => ({ ...f, department: v }))}
+          options={departments}
+          placeholder="Department"
+        />
       </Field>
       <Field label="Position / Job Title">
         <FInput placeholder="Software Engineer" value={form.position}
           onChange={(e) => setForm((f) => ({ ...f, position: e.target.value }))} />
       </Field>
       <Field label="Branch / Location">
-        <FInput placeholder="Head Office / Cebu Branch" value={form.branchLocation}
-          onChange={(e) => setForm((f) => ({ ...f, branchLocation: e.target.value }))} />
+        <SmartSelect
+          value={form.branchLocation}
+          onChange={(v) => setForm((f) => ({ ...f, branchLocation: v }))}
+          options={branches}
+          placeholder="Branch"
+        />
       </Field>
       <Field label="Reporting Manager">
         <FInput placeholder="John Smith" value={form.reportingManager}
@@ -673,7 +732,8 @@ export function EmployeesClient({ user }: { user: any }) {
     } finally { setSaving(false); }
   }
 
-  const departments = Array.from(new Set(employees.map((e) => e.department).filter(Boolean)));
+  const departments = Array.from(new Set(employees.map((e) => e.department).filter(Boolean))) as string[];
+  const branches = Array.from(new Set(employees.map((e) => e.branchLocation).filter(Boolean))) as string[];
 
   return (
     <div className="space-y-6">
@@ -836,7 +896,7 @@ export function EmployeesClient({ user }: { user: any }) {
 
           {/* Tab content — passes form + setForm as props so no remount on state change */}
           {activeTab === "personal"     && <PersonalTab     form={form} setForm={setForm} />}
-          {activeTab === "employment"   && <EmploymentTab   form={form} setForm={setForm} />}
+          {activeTab === "employment"   && <EmploymentTab   form={form} setForm={setForm} departments={departments} branches={branches} />}
           {activeTab === "compensation" && <CompensationTab form={form} setForm={setForm} />}
           {activeTab === "government"   && <GovernmentTab   form={form} setForm={setForm} />}
           {activeTab === "documents"    && <DocumentsTab    form={form} setForm={setForm} />}

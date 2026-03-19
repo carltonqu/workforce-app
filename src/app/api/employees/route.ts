@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search") || "";
   const department = searchParams.get("department") || "";
+  const branch = searchParams.get("branch") || "";
   const status = searchParams.get("status") || "";
 
   const employees = await (prisma as any).employee.findMany({
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
           }
         : {}),
       ...(department ? { department } : {}),
+      ...(branch ? { branchLocation: branch } : {}),
       ...(status ? { employmentStatus: status } : {}),
     },
     orderBy: { createdAt: "desc" },

@@ -19,6 +19,316 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
+// ─── Group Schedule Tab ────────────────────────────────────────────────────────
+
+function GroupScheduleTab() {
+  const [branches, setBranches] = useState<string[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [groupType, setGroupType] = useState<"branch" | "department">("branch");
+  const [groupValue, setGroupValue] = useState("");
+  const [scheduleMode, setScheduleMode] = useState<"weekly" | "daterange">("weekly");
+
+  // Weekly mode
+  const [selectedDays, setSelectedDays] = useState([1, 2, 3, 4, 5]); // Mon-Fri
+  const [weeksCount, setWeeksCount] = useState(4);
+  const [weekStartDate, setWeekStartDate] = useState(() => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = day === 0 ? 1 : 8 - day;
+    d.setDate(d.getDate() + diff);
+    return d.toISOString().slice(0, 10);
+  });
+
+  // Date range mode
+  const [rangeFrom, setRangeFrom] = useState(new Date().toISOString().slice(0, 10));
+  const [rangeTo, setRangeTo] = useState(new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10));
+
+  // Shift details
+  const [shiftStart, setShiftStart] = useState("09:00");
+  const [shiftEnd, setShiftEnd] = useState("17:00");
+  const [shiftName, setShiftName] = useState("Regular Shift");
+  const [location, setLocation] = useState("");
+  const [isRestDay, setIsRestDay] = useState(false);
+
+  // Preview
+  const [previewEmployees, setPreviewEmployees] = useState<{ name: string; email: string }[]>([]);
+  const [applying, setApplying] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/schedule-group")
+      .then(r => r.json())
+      .then(data => {
+        setBranches(data.branches || []);
+        setDepartments(data.departments || []);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!groupValue) { setPreviewEmployees([]); return; }
+    const param = groupType === "branch" ? `branch=${encodeURIComponent(groupValue)}` : `department=${encodeURIComponent(groupValue)}`;
+    fetch(`/api/employees?${param}`)
+      .then(r => r.json())
+      .then(data => {
+        const list = Array.isArray(data) ? data : (data.employees || []);
+        setPreviewEmployees(list.map((e: { fullName?: string; name?: string; email: string }) => ({
+          name: e.fullName || e.name || "—",
+          email: e.email,
+        })));
+      })
+      .catch(() => {});
+  }, [groupType, groupValue]);
+
+  function computeDates(): string[] {
+    if (scheduleMode === "daterange") {
+      const dates: string[] = [];
+      const start = new Date(rangeFrom + "T00:00:00");
+      const end = new Date(rangeTo + "T00:00:00");
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        dates.push(d.toISOString().slice(0, 10));
+      }
+      return dates;
+    } else {
+      // weekly recurring
+      const dates: string[] = [];
+      const startOfWeek = new Date(weekStartDate + "T00:00:00");
+      // Normalize startOfWeek to the Monday of that week
+      const startDay = startOfWeek.getDay(); // 0=Sun
+      const mondayOffset = startDay === 0 ? -6 : 1 - startDay;
+      const weekBase = new Date(startOfWeek);
+      weekBase.setDate(startOfWeek.getDate() + mondayOffset);
+
+      for (let week = 0; week < weeksCount; week++) {
+        for (const day of selectedDays) {
+          // day: 0=Sun, 1=Mon...6=Sat
+          // weekBase is Monday (day 1)
+          const offset = (day === 0 ? 6 : day - 1); // Mon=0 offset
+          const d = new Date(weekBase);
+          d.setDate(weekBase.getDate() + week * 7 + offset);
+          dates.push(d.toISOString().slice(0, 10));
+        }
+      }
+      return Array.from(new Set(dates)).sort();
+    }
+  }
+
+  async function handleApply() {
+    if (!groupValue) { toast.error("Select a branch or department first"); return; }
+    const dates = computeDates();
+    if (dates.length === 0) { toast.error("No dates selected"); return; }
+
+    setApplying(true);
+    try {
+      const res = await fetch("/api/admin/schedule-group", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupType, groupValue, dates, shiftStart, shiftEnd, shiftName, location, isRestDay }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || "Failed to apply schedule"); return; }
+      toast.success(data.message || "Schedule applied!");
+    } catch {
+      toast.error("Failed to apply schedule");
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  const dates = computeDates();
+  const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-blue-600" />
+            Group Schedule
+          </CardTitle>
+          <p className="text-sm text-gray-500">Set one schedule for an entire branch or department at once.</p>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Group type toggle */}
+          <div>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-2">Apply to</label>
+            <div className="flex gap-3">
+              {(["branch", "department"] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => { setGroupType(t); setGroupValue(""); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors capitalize ${
+                    groupType === t
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-blue-400"
+                  }`}
+                >
+                  {t === "branch" ? "🏢 Branch" : "👥 Department"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Group selector */}
+          <div>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+              Select {groupType === "branch" ? "Branch" : "Department"}
+            </label>
+            <select
+              value={groupValue}
+              onChange={e => setGroupValue(e.target.value)}
+              className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+            >
+              <option value="">— Select {groupType} —</option>
+              {(groupType === "branch" ? branches : departments).map(v => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+            {previewEmployees.length > 0 && (
+              <p className="text-xs text-blue-600 mt-1">
+                {previewEmployees.length} employee(s) will be affected:{" "}
+                {previewEmployees.slice(0, 3).map(e => e.name).join(", ")}
+                {previewEmployees.length > 3 ? ` +${previewEmployees.length - 3} more` : ""}
+              </p>
+            )}
+            {groupValue && previewEmployees.length === 0 && (
+              <p className="text-xs text-orange-500 mt-1">⚠️ No employees found in this {groupType}</p>
+            )}
+          </div>
+
+          {/* Schedule mode */}
+          <div>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-2">Schedule Type</label>
+            <div className="flex gap-3">
+              {(["weekly", "daterange"] as const).map(m => (
+                <button
+                  key={m}
+                  onClick={() => setScheduleMode(m)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    scheduleMode === m
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-blue-400"
+                  }`}
+                >
+                  {m === "weekly" ? "📅 Weekly Recurring" : "📆 Date Range"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Weekly mode settings */}
+          {scheduleMode === "weekly" && (
+            <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+              <div>
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-2">Days of week</label>
+                <div className="flex gap-2 flex-wrap">
+                  {DAYS_SHORT.map((day, idx) => (
+                    <button
+                      key={day}
+                      onClick={() => setSelectedDays(prev =>
+                        prev.includes(idx) ? prev.filter(d => d !== idx) : [...prev, idx]
+                      )}
+                      className={`w-10 h-10 rounded-full text-xs font-semibold border transition-colors ${
+                        selectedDays.includes(idx)
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400"
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Starting from</label>
+                  <input type="date" value={weekStartDate} onChange={e => setWeekStartDate(e.target.value)}
+                    className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Number of weeks</label>
+                  <input type="number" min={1} max={52} value={weeksCount} onChange={e => setWeeksCount(Number(e.target.value))}
+                    className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Date range mode settings */}
+          {scheduleMode === "daterange" && (
+            <div className="grid grid-cols-2 gap-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+              <div>
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">From</label>
+                <input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)}
+                  className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">To</label>
+                <input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)}
+                  className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+              </div>
+            </div>
+          )}
+
+          {/* Shift details */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Shift Start</label>
+              <input type="time" value={shiftStart} onChange={e => setShiftStart(e.target.value)}
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Shift End</label>
+              <input type="time" value={shiftEnd} onChange={e => setShiftEnd(e.target.value)}
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Shift Name</label>
+              <input type="text" value={shiftName} onChange={e => setShiftName(e.target.value)} placeholder="Regular Shift"
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Location (optional)</label>
+              <input type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="Branch name"
+                className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900" />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+            <input type="checkbox" checked={isRestDay} onChange={e => setIsRestDay(e.target.checked)} className="w-4 h-4" />
+            Mark as Rest Day (no work)
+          </label>
+
+          {/* Preview summary */}
+          {dates.length > 0 && groupValue && (
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+              <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Preview</p>
+              <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
+                Will apply <strong>{shiftStart} – {shiftEnd}</strong> ({shiftName}) to{" "}
+                <strong>{previewEmployees.length} employee(s)</strong> across{" "}
+                <strong>{dates.length} date(s)</strong>
+                {dates.length <= 5 ? `: ${dates.join(", ")}` : `: ${dates.slice(0, 3).join(", ")} ... ${dates[dates.length - 1]}`}
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">
+                Total: {previewEmployees.length * dates.length} shift entries
+              </p>
+            </div>
+          )}
+
+          <button
+            onClick={handleApply}
+            disabled={applying || !groupValue || dates.length === 0}
+            className="w-full py-3 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
+            {applying
+              ? <><RefreshCw className="w-4 h-4 animate-spin" /> Applying...</>
+              : <><Save className="w-4 h-4" /> Apply Group Schedule</>}
+          </button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 interface Shift {
@@ -381,7 +691,7 @@ export function SchedulingClient({
   orgId,
   weekStart,
 }: SchedulingClientProps) {
-  const [activeTab, setActiveTab] = useState<"roster" | "employee-shifts">("roster");
+  const [activeTab, setActiveTab] = useState<"group-schedule" | "roster" | "employee-shifts">("group-schedule");
   const [shifts, setShifts] = useState<Shift[]>(initialShifts);
   const [saving, setSaving] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -477,14 +787,14 @@ export function SchedulingClient({
       {/* Tab switcher */}
       <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl w-fit">
         <button
-          onClick={() => setActiveTab("roster")}
+          onClick={() => setActiveTab("group-schedule")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            activeTab === "roster"
+            activeTab === "group-schedule"
               ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
               : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           }`}
         >
-          Weekly Roster
+          Group Schedule
         </button>
         <button
           onClick={() => setActiveTab("employee-shifts")}
@@ -494,11 +804,23 @@ export function SchedulingClient({
               : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           }`}
         >
-          Employee Shifts
+          Individual
+        </button>
+        <button
+          onClick={() => setActiveTab("roster")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            activeTab === "roster"
+              ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+              : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+          }`}
+        >
+          Weekly View
         </button>
       </div>
 
-      {activeTab === "employee-shifts" ? (
+      {activeTab === "group-schedule" ? (
+        <GroupScheduleTab />
+      ) : activeTab === "employee-shifts" ? (
         <EmployeeShiftsTab />
       ) : (
         <>
