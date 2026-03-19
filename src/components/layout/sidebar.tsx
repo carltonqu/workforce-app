@@ -17,6 +17,7 @@ import {
   ClipboardCheck,
   Lock,
   TrendingUp,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ const adminSections = [
     title: "Overview",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, feature: null },
+      { href: "/announcements", label: "Announcements", icon: Megaphone, feature: null },
     ],
   },
   {
@@ -51,7 +53,6 @@ const adminSections = [
     title: "Finance",
     items: [
       { href: "/payroll", label: "Payroll", icon: DollarSign, feature: "payroll" as const },
-      { href: "/reports", label: "Reports", icon: BarChart2, feature: "reports" as const },
       { href: "/finance", label: "Finance Summary", icon: TrendingUp, feature: null },
     ],
   },
@@ -77,6 +78,7 @@ const employeeSections = [
     title: "Overview",
     items: [
       { href: "/employee-dashboard", label: "My Dashboard", icon: LayoutDashboard, feature: null },
+      { href: "/announcements", label: "Announcements", icon: Megaphone, feature: null },
     ],
   },
   {

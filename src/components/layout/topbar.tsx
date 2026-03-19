@@ -36,6 +36,7 @@ export function Topbar({ title }: TopbarProps) {
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -55,6 +56,14 @@ export function Topbar({ title }: TopbarProps) {
     const interval = setInterval(fetchNotifications, 30000); // poll every 30s
     return () => clearInterval(interval);
   }, [fetchNotifications]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    fetch("/api/employee/profile")
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.profilePhoto) setProfilePhoto(data.profilePhoto); })
+      .catch(() => {});
+  }, [session?.user]);
 
   async function markAllRead() {
     try {
@@ -205,9 +214,13 @@ export function Topbar({ title }: TopbarProps) {
           <DropdownMenuTrigger>
             <Button variant="ghost" className="relative h-9 w-9 rounded-full">
               <Avatar className="h-9 w-9">
-                <AvatarFallback className="bg-blue-600 text-white text-sm">
-                  {initials}
-                </AvatarFallback>
+                {profilePhoto ? (
+                  <img src={profilePhoto} alt="Profile" className="h-9 w-9 rounded-full object-cover" />
+                ) : (
+                  <AvatarFallback className="bg-blue-600 text-white text-sm">
+                    {initials}
+                  </AvatarFallback>
+                )}
               </Avatar>
             </Button>
           </DropdownMenuTrigger>

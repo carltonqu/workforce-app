@@ -14,6 +14,10 @@ export async function GET(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
   const db = getDb();
+  // Ensure motto column exists
+  try {
+    await db.execute(`ALTER TABLE Employee ADD COLUMN motto TEXT`);
+  } catch { /* column already exists */ }
   const userRow = await db.execute({ sql: "SELECT linkedEmployeeId FROM User WHERE id=?", args: [user.id] });
   const linkedId = userRow.rows[0]?.linkedEmployeeId as string | null;
   if (!linkedId) {
@@ -34,7 +38,7 @@ export async function PATCH(req: NextRequest) {
   if (!linkedId) return NextResponse.json({ error: "No employee profile linked" }, { status: 404 });
   const body = await req.json();
   const now = new Date().toISOString();
-  const allowed = ["phoneNumber", "address", "emergencyContact", "profilePhoto"];
+  const allowed = ["phoneNumber", "address", "emergencyContact", "profilePhoto", "motto"];
   const updates: string[] = [];
   const args: any[] = [];
   for (const field of allowed) {

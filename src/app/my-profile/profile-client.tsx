@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Camera, Save, Lock, CheckCircle2, AlertCircle, X, Loader2 } from "lucide-react";
+import { Camera, Save, Lock, CheckCircle2, AlertCircle, X, Loader2 } from "lucide-react";
 
 interface EmergencyContact { name: string; relationship: string; phone: string; }
 
@@ -37,6 +37,8 @@ export function ProfileClient({ user }: { user: any }) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [address, setAddress] = useState("");
   const [profilePhoto, setProfilePhoto] = useState("");
+  const [photoPreview, setPhotoPreview] = useState("");
+  const [motto, setMotto] = useState("");
   const [ec, setEc] = useState<EmergencyContact>({ name: "", relationship: "", phone: "" });
 
   // Password change
@@ -58,6 +60,8 @@ export function ProfileClient({ user }: { user: any }) {
         setPhoneNumber(data.phoneNumber || "");
         setAddress(data.address || "");
         setProfilePhoto(data.profilePhoto || "");
+        setPhotoPreview(data.profilePhoto || "");
+        setMotto(data.motto || "");
         try {
           const parsed = typeof data.emergencyContact === "string"
             ? JSON.parse(data.emergencyContact)
@@ -68,13 +72,29 @@ export function ProfileClient({ user }: { user: any }) {
       .finally(() => setLoading(false));
   }, []);
 
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("error", "Photo must be under 2MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const b64 = ev.target?.result as string;
+      setPhotoPreview(b64);
+      setProfilePhoto(b64);
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function handleSave() {
     setSaving(true);
     try {
       const res = await fetch("/api/employee/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phoneNumber, address, profilePhoto, emergencyContact: ec }),
+        body: JSON.stringify({ phoneNumber, address, profilePhoto, motto, emergencyContact: ec }),
       });
       if (!res.ok) { showToast("error", (await res.json()).error || "Failed to save"); return; }
       showToast("success", "Profile updated successfully");
@@ -106,26 +126,34 @@ export function ProfileClient({ user }: { user: any }) {
   }
 
   const formatDate = (d?: string) => d ? new Date(d).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) : "—";
+  const nameInitials = (user?.name || "U").split(" ").map((n: string) => n[0]).join("").toUpperCase();
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* Profile header */}
+      {/* Profile header with photo upload */}
       <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-6">
-        <div className="flex items-center gap-5">
+        <div className="flex flex-col items-center gap-3 mb-6">
           <div className="relative">
-            {profilePhoto ? (
-              <img src={profilePhoto} alt={profile?.fullName || user.name} className="w-20 h-20 rounded-full object-cover border-2 border-gray-200" />
+            {photoPreview ? (
+              <img src={photoPreview} alt="Profile" className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md" />
             ) : (
-              <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center border-2 border-gray-200">
-                <User className="w-8 h-8 text-blue-600" />
+              <div className="w-24 h-24 rounded-full bg-blue-600 flex items-center justify-center text-white text-2xl font-bold border-4 border-white shadow-md">
+                {nameInitials}
               </div>
             )}
-            <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center">
-              <Camera className="w-3 h-3 text-gray-500" />
-            </div>
+            <label className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer shadow-md hover:bg-blue-700 transition">
+              <Camera className="w-4 h-4 text-white" />
+              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+            </label>
           </div>
+          <div className="text-center">
+            <p className="font-semibold text-gray-900">{profile?.fullName || user?.name}</p>
+            <p className="text-sm text-gray-500">{profile?.email || user?.email}</p>
+            {motto && <p className="text-xs text-gray-400 italic mt-1">&ldquo;{motto}&rdquo;</p>}
+          </div>
+        </div>
+        <div className="flex items-center gap-3 border-t border-gray-100 pt-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{profile?.fullName || user.name}</h1>
             <p className="text-gray-500 text-sm">{profile?.position || "Employee"}</p>
             <p className="text-gray-400 text-xs mt-0.5">ID: {profile?.employeeId || "—"}</p>
           </div>
@@ -170,12 +198,23 @@ export function ProfileClient({ user }: { user: any }) {
           <Field label="Phone Number">
             <input className={inputCls} value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="+63 912 345 6789" />
           </Field>
-          <Field label="Profile Photo URL">
-            <input className={inputCls} value={profilePhoto} onChange={e => setProfilePhoto(e.target.value)} placeholder="https://..." />
-          </Field>
           <div className="col-span-full">
             <Field label="Address">
               <input className={inputCls} value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Main St, City, Province" />
+            </Field>
+          </div>
+          <div className="col-span-full">
+            <Field label="Personal Motto / Bio">
+              <div className="relative">
+                <input
+                  className={inputCls}
+                  placeholder="Add a personal motto or bio..."
+                  value={motto}
+                  maxLength={120}
+                  onChange={e => setMotto(e.target.value)}
+                />
+                <span className="absolute right-3 top-2 text-xs text-gray-400">{motto.length}/120</span>
+              </div>
             </Field>
           </div>
         </div>
