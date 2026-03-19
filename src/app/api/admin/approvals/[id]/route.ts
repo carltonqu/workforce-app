@@ -12,14 +12,17 @@ function getDb() {
 
 async function findUserByEmployeeId(db: ReturnType<typeof createClient>, employeeId: string) {
   try {
+    // LeaveRequest.employeeId is actually the User.id directly
+    const user = await prisma.user.findUnique({ where: { id: employeeId } });
+    if (user) return user;
+    // Fallback: try matching Employee.employeeId → email → User
     const empRow = await db.execute({
       sql: `SELECT email FROM Employee WHERE employeeId=? LIMIT 1`,
       args: [employeeId],
     });
     const emp = empRow.rows[0];
     if (!emp) return null;
-    const user = await prisma.user.findUnique({ where: { email: emp.email as string } });
-    return user;
+    return await prisma.user.findUnique({ where: { email: emp.email as string } });
   } catch {
     return null;
   }
