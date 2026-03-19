@@ -3,15 +3,15 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PayrollClient } from "./payroll-client";
-import { hasFeatureAccess } from "@/lib/tier";
+import { hasFeatureAccess, type Tier } from "@/lib/tier";
 import { UpgradePrompt } from "@/components/upgrade-prompt";
 
 export default async function PayrollPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const user = session.user as any;
-  const tier = user.tier || "FREE";
+  const user = session.user as { id: string; role: string; tier?: string; orgId?: string };
+  const tier = (user.tier ?? "FREE") as Tier;
 
   if (!hasFeatureAccess(tier, "payroll")) {
     return (
@@ -21,48 +21,64 @@ export default async function PayrollPage() {
     );
   }
 
-  // Fetch payroll entries + time entries for auto-calculation
-  const [payrollEntries, timeEntries] = await Promise.all([
-    prisma.payrollEntry.findMany({
-      where: { userId: user.id },
-      orderBy: { periodEnd: "desc" },
-      include: { user: { select: { name: true, email: true } } },
-    }),
-    prisma.timeEntry.findMany({
-      where: {
-        userId: user.id,
-        clockOut: { not: null },
-      },
-      orderBy: { clockIn: "desc" },
-    }),
-  ]);
+  const isAdmin = user.role === "MANAGER" || user.role === "HR";
 
-  // Get all org employees if manager/HR
-  const orgEmployees =
-    (user.role === "MANAGER" || user.role === "HR") && user.orgId
-      ? await prisma.user.findMany({
-          where: { orgId: user.orgId },
-          select: { id: true, name: true, email: true, role: true },
-        })
-      : [];
+  // Fetch employees list for admin dropdown
+  const employees = isAdmin
+    ? await prisma.user.findMany({
+        where: user.orgId ? { orgId: user.orgId } : {},
+        select: { id: true, name: true, email: true, role: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
+
+  // Fetch payroll entries
+  const payrollEntriesRaw = isAdmin
+    ? await prisma.payrollEntry.findMany({
+        orderBy: { periodEnd: "desc" },
+        include: { user: { select: { name: true, email: true } } },
+        take: 200,
+      })
+    : await prisma.payrollEntry.findMany({
+        where: { userId: user.id },
+        orderBy: { periodEnd: "desc" },
+        include: { user: { select: { name: true, email: true } } },
+      });
+
+  // Fetch current-year holidays
+  const currentYear = new Date().getFullYear();
+  const holidaysRaw = await prisma.holiday.findMany({
+    where: {
+      date: {
+        gte: new Date(`${currentYear}-01-01`),
+        lte: new Date(`${currentYear}-12-31`),
+      },
+    },
+    orderBy: { date: "asc" },
+  });
+
+  const payrollEntries = payrollEntriesRaw.map((p) => ({
+    ...p,
+    periodStart: p.periodStart.toISOString(),
+    periodEnd: p.periodEnd.toISOString(),
+    createdAt: p.createdAt.toISOString(),
+    updatedAt: p.updatedAt.toISOString(),
+  }));
+
+  const holidays = holidaysRaw.map((h) => ({
+    ...h,
+    date: h.date.toISOString(),
+    createdAt: h.createdAt.toISOString(),
+    updatedAt: h.updatedAt.toISOString(),
+  }));
 
   return (
     <DashboardLayout title="Payroll">
       <PayrollClient
-        payrollEntries={payrollEntries.map((p) => ({
-          ...p,
-          periodStart: p.periodStart.toISOString(),
-          periodEnd: p.periodEnd.toISOString(),
-          createdAt: p.createdAt.toISOString(),
-          updatedAt: p.updatedAt.toISOString(),
-        }))}
-        timeEntries={timeEntries.map((t) => ({
-          ...t,
-          clockIn: t.clockIn.toISOString(),
-          clockOut: t.clockOut?.toISOString() ?? null,
-        }))}
+        employees={employees}
+        payrollEntries={payrollEntries}
+        holidays={holidays}
         currentUserId={user.id}
-        orgEmployees={orgEmployees}
         userRole={user.role}
       />
     </DashboardLayout>

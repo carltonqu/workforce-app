@@ -77,15 +77,58 @@ model PayrollEntry {
   userId        String
   periodStart   DateTime
   periodEnd     DateTime
+  periodType    String   @default("MONTHLY")
+  status        String   @default("DRAFT")
+  rateType      String   @default("MONTHLY")
+  rate          Float    @default(0)
+  dailyRate     Float    @default(0)
+  hourlyRate    Float    @default(0)
+  daysWorked    Float    @default(0)
+  hoursWorked   Float    @default(0)
+  lateMinutes   Float    @default(0)
+  undertimeMinutes Float @default(0)
+  absenceDays   Float    @default(0)
+  basicPay      Float    @default(0)
+  lateDeduction Float    @default(0)
+  undertimeDeduction Float @default(0)
+  absenceDeduction Float @default(0)
+  otPay         Float    @default(0)
+  nightDiffPay  Float    @default(0)
+  holidayPay    Float    @default(0)
+  allowancesJson String  @default("[]")
+  totalAllowances Float  @default(0)
+  grossPay      Float    @default(0)
+  sssEmployee   Float    @default(0)
+  sssEmployer   Float    @default(0)
+  philhealthEmployee Float @default(0)
+  philhealthEmployer Float @default(0)
+  pagibigEmployee Float  @default(0)
+  pagibigEmployer Float  @default(0)
+  withholdingTax Float   @default(0)
+  taxableIncome Float    @default(0)
+  otherDeductionsJson String @default("[]")
+  totalOtherDeductions Float @default(0)
+  netPay        Float    @default(0)
   regularHours  Float    @default(0)
   overtimeHours Float    @default(0)
   payRate       Float    @default(0)
   deductions    Float    @default(0)
   total         Float    @default(0)
+  notes         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Holiday {
+  id        String   @id @default(cuid())
+  date      DateTime
+  name      String
+  type      String
+  orgId     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Notification {
