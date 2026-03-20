@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const publicPaths = ["/", "/login"];
+const publicPaths = ["/", "/login", "/signup"];
 
 export async function middleware(req: NextRequest) {
   const { nextUrl } = req;

@@ -18,6 +18,7 @@ import {
   Lock,
   TrendingUp,
   Megaphone,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,7 @@ const adminSections = [
     items: [
       { href: "/scheduling", label: "Scheduling", icon: Calendar, feature: "scheduling" as const },
       { href: "/approvals", label: "Approvals", icon: ClipboardCheck, feature: null },
+      { href: "/assets", label: "Assets", icon: Package, feature: null },
     ],
   },
   {
@@ -94,6 +96,7 @@ const employeeSections = [
     items: [
       { href: "/my-requests", label: "Requests", icon: ClipboardListIcon, feature: null },
       { href: "/my-leave", label: "Leave", icon: PlaneIcon, feature: null },
+      { href: "/my-assets", label: "My Assets", icon: Package, feature: null },
     ],
   },
   {

@@ -169,3 +169,53 @@ model Employee {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
+
+model Asset {
+  id           String   @id @default(cuid())
+  assetCode    String   @unique
+  name         String
+  type         String
+  serialNumber String?
+  brand        String?
+  model        String?
+  condition    String   @default("Good")
+  status       String   @default("Available")
+  notes        String?
+  orgId        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignments  AssetAssignment[]
+  requests     AssetRequest[]
+}
+
+model AssetAssignment {
+  id                String    @id @default(cuid())
+  assetId           String
+  employeeId        String
+  employeeDbId      String
+  assignedBy        String
+  conditionOnAssign String    @default("Good")
+  dateAssigned      DateTime  @default(now())
+  dateReturned      DateTime?
+  isActive          Boolean   @default(true)
+  notes             String?
+  createdAt         DateTime  @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model AssetRequest {
+  id           String   @id @default(cuid())
+  employeeId   String
+  assetId      String?
+  assetType    String
+  reason       String
+  urgency      String   @default("Normal")
+  status       String   @default("Pending")
+  adminComment String?
+  requestedAt  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  asset Asset? @relation(fields: [assetId], references: [id])
+}
