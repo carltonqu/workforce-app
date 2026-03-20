@@ -337,26 +337,58 @@ export async function initTenantSchema(dbUrl: string, dbAuthToken: string): Prom
     `CREATE TABLE IF NOT EXISTS "Announcement" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "title" TEXT NOT NULL,
-      "content" TEXT NOT NULL,
-      "authorId" TEXT NOT NULL,
-      "orgId" TEXT NOT NULL,
+      "body" TEXT NOT NULL,
+      "type" TEXT DEFAULT 'general',
+      "createdBy" TEXT NOT NULL,
+      "createdByName" TEXT,
+      "orgId" TEXT,
+      "imageBase64" TEXT,
+      "status" TEXT DEFAULT 'published',
       "pinned" INTEGER NOT NULL DEFAULT 0,
-      "reactions" TEXT NOT NULL DEFAULT '{}',
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" DATETIME NOT NULL
+      "targetDepartment" TEXT,
+      "targetBranch" TEXT,
+      "scheduledAt" TEXT,
+      "reactions" TEXT,
+      "createdAt" TEXT NOT NULL,
+      "updatedAt" TEXT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS "AnnouncementReaction" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "announcementId" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "emoji" TEXT NOT NULL,
+      "createdAt" TEXT NOT NULL,
+      UNIQUE("announcementId", "userId", "emoji")
     )`,
     `CREATE TABLE IF NOT EXISTS "LeaveRequest" (
       "id" TEXT NOT NULL PRIMARY KEY,
-      "userId" TEXT NOT NULL,
-      "type" TEXT NOT NULL,
-      "startDate" DATETIME NOT NULL,
-      "endDate" DATETIME NOT NULL,
+      "employeeId" TEXT,
+      "employeeName" TEXT,
+      "department" TEXT,
+      "leaveType" TEXT,
+      "startDate" TEXT,
+      "endDate" TEXT,
+      "days" REAL DEFAULT 1,
       "reason" TEXT,
-      "status" TEXT NOT NULL DEFAULT 'PENDING',
-      "approvedBy" TEXT,
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" DATETIME NOT NULL,
-      FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE
+      "status" TEXT NOT NULL DEFAULT 'Pending',
+      "adminComment" TEXT,
+      "orgId" TEXT,
+      "createdAt" TEXT NOT NULL,
+      "updatedAt" TEXT NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS "ApprovalRequest" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "employeeId" TEXT,
+      "employeeName" TEXT,
+      "department" TEXT,
+      "requestType" TEXT,
+      "details" TEXT,
+      "status" TEXT NOT NULL DEFAULT 'Pending',
+      "priority" TEXT DEFAULT 'Normal',
+      "adminComment" TEXT,
+      "orgId" TEXT,
+      "createdAt" TEXT NOT NULL,
+      "updatedAt" TEXT NOT NULL
     )`,
     `CREATE TABLE IF NOT EXISTS "EmailVerification" (
       "id" TEXT NOT NULL PRIMARY KEY,
@@ -372,5 +404,16 @@ export async function initTenantSchema(dbUrl: string, dbAuthToken: string): Prom
 
   for (const sql of statements) {
     await db.execute(sql);
+  }
+
+  // Ensure extra columns exist (safe no-ops if already present)
+  const extraCols = [
+    'ALTER TABLE User ADD COLUMN username TEXT',
+    'ALTER TABLE User ADD COLUMN emailVerified INTEGER DEFAULT 1',
+    'ALTER TABLE User ADD COLUMN linkedEmployeeId TEXT',
+    'ALTER TABLE Employee ADD COLUMN orgId TEXT',
+  ];
+  for (const sql of extraCols) {
+    try { await db.execute(sql); } catch {}
   }
 }
