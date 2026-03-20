@@ -32,15 +32,15 @@ const providers = [
       const input = (credentials.email as string).trim().toLowerCase();
       let user = null;
 
-      // Try email first
+      // Try email first in master DB
       user = await prisma.user.findUnique({ where: { email: input } });
 
-      // If not found by email, try username via raw query
+      // If not found by email, try username in master DB
       if (!user) {
         const db = getDb();
         await ensureAuthColumns(db);
         const rows = await db.execute({
-          sql: "SELECT id FROM User WHERE LOWER(username)=?",
+          sql: "SELECT id FROM User WHERE LOWER(username)=? LIMIT 1",
           args: [input],
         });
         if (rows.rows.length) {
@@ -57,8 +57,7 @@ const providers = [
       );
       if (!passwordMatch) return null;
 
-      // Require email verification for newly registered email/password admins
-      // (legacy users without column/default remain allowed)
+      // Check email verification
       try {
         const db = getDb();
         await ensureAuthColumns(db);
