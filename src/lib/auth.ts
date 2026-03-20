@@ -4,6 +4,7 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@libsql/client";
+import { provisionTenantDb, initTenantSchema } from "@/lib/tenant";
 
 function getDb() {
   return createClient({
@@ -102,12 +103,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (account?.provider === "google" && user.email) {
         const existing = await prisma.user.findUnique({ where: { email: user.email } });
         if (!existing) {
+          // Provision a dedicated Turso DB for this new admin's org
+          let dbUrl: string | undefined;
+          let dbAuthToken: string | undefined;
+          try {
+            const orgSlug = (user.name || "admin").toLowerCase().replace(/[^a-z0-9]/g, "");
+            const tenantDb = await provisionTenantDb(orgSlug);
+            dbUrl = tenantDb.dbUrl;
+            dbAuthToken = tenantDb.dbAuthToken;
+            // Initialize the schema on the new DB
+            await initTenantSchema(dbUrl, dbAuthToken);
+          } catch (err) {
+            console.error("[Google SignIn] Failed to provision tenant DB, falling back to master:", err);
+            // Fall back gracefully — org will use master DB
+          }
+
+          // Create org in master DB with tenant DB credentials
           const org = await prisma.organization.create({
             data: {
               name: `${user.name || "Admin"}'s Organization`,
               tier: "ADVANCED",
+              ...(dbUrl ? { dbUrl, dbAuthToken } : {}),
             },
           });
+
           const randomPw = await bcrypt.hash(`google:${crypto.randomUUID()}`, 10);
           const created = await prisma.user.create({
             data: {
@@ -119,6 +138,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               orgId: org.id,
             },
           });
+
+          // Also create the admin user in the tenant DB if provisioned
+          if (dbUrl && dbAuthToken) {
+            try {
+              await initTenantSchema(dbUrl, dbAuthToken); // ensure tables exist
+              const tenantClient = createClient({
+                url: dbUrl.replace("libsql://", "https://"),
+                authToken: dbAuthToken,
+              });
+              const now = new Date().toISOString();
+              await tenantClient.execute({
+                sql: `INSERT OR IGNORE INTO "Organization" (id, name, tier, createdAt, updatedAt) VALUES (?, ?, 'ADVANCED', ?, ?)`,
+                args: [org.id, org.name, now, now],
+              });
+              await tenantClient.execute({
+                sql: `INSERT OR IGNORE INTO "User" (id, name, email, password, role, tier, orgId, emailVerified, createdAt, updatedAt) VALUES (?, ?, ?, ?, 'MANAGER', 'ADVANCED', ?, 1, ?, ?)`,
+                args: [created.id, created.name, created.email, created.password, org.id, now, now],
+              });
+            } catch (err) {
+              console.error("[Google SignIn] Failed to seed tenant DB with admin user:", err);
+            }
+          }
+
           try {
             const db = getDb();
             await ensureAuthColumns(db);
