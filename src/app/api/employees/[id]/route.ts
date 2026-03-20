@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForOrg } from "@/lib/tenant";
 
 // GET /api/employees/:id
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
@@ -11,6 +11,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if (user.role !== "MANAGER" && user.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const prisma = await getPrismaForOrg(user.orgId);
 
   const employee = await (prisma as any).employee.findUnique({ where: { id: params.id } });
   if (!employee) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -27,6 +28,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (user.role !== "MANAGER" && user.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const prisma = await getPrismaForOrg(user.orgId);
 
   const body = await req.json();
   const {
@@ -106,6 +108,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (user.role !== "MANAGER" && user.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const prisma = await getPrismaForOrg(user.orgId);
 
   await (prisma as any).employee.delete({ where: { id: params.id } });
   return NextResponse.json({ success: true });

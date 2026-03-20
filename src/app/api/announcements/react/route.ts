@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createClient } from "@libsql/client";
+import { getTenantDb } from "@/lib/tenant";
 import { randomUUID } from "crypto";
-
-function getDb() {
-  return createClient({
-    url: (process.env.DATABASE_URL ?? "").replace("libsql://", "https://"),
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  });
-}
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = (session.user as any).id;
-  const db = getDb();
+  const user = session.user as any;
+  const userId = user.id;
+  const db = await getTenantDb(user.orgId);
   const { announcementId, emoji } = await req.json();
   if (!announcementId || !emoji) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 

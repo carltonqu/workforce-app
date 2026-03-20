@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createClient } from "@libsql/client";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForOrg, getTenantDb } from "@/lib/tenant";
 import { randomUUID } from "crypto";
-
-function getDb() {
-  return createClient({
-    url: (process.env.DATABASE_URL ?? "").replace("libsql://", "https://"),
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  });
-}
 
 // POST: Apply a schedule to all employees in a branch or department
 export async function POST(req: NextRequest) {
@@ -19,6 +11,9 @@ export async function POST(req: NextRequest) {
   if (sessionUser.role !== "MANAGER" && sessionUser.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  const prisma = await getPrismaForOrg(sessionUser.orgId ?? "");
+  const db = await getTenantDb(sessionUser.orgId ?? "");
 
   const body = await req.json() as {
     groupType: "branch" | "department";
@@ -64,7 +59,6 @@ export async function POST(req: NextRequest) {
 
   // 3. Insert/update EmployeeShift for each user × each date
   // Note: EmployeeShift table has no updatedAt column, so for updates we DELETE + INSERT
-  const db = getDb();
   const now = new Date().toISOString();
   let applied = 0;
 
@@ -107,10 +101,12 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const sessionUser = session.user as { role: string };
+  const sessionUser = session.user as { role: string; orgId?: string };
   if (sessionUser.role !== "MANAGER" && sessionUser.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  const prisma = await getPrismaForOrg(sessionUser.orgId ?? "");
 
   const employees = await (prisma as any).employee.findMany({
     select: { branchLocation: true, department: true },

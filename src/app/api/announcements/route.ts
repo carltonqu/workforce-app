@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createClient } from "@libsql/client";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForOrg, getTenantDb } from "@/lib/tenant";
 import { randomUUID } from "crypto";
 
-function getDb() {
-  return createClient({
-    url: (process.env.DATABASE_URL ?? "").replace("libsql://", "https://"),
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  });
-}
-
-async function ensureTables(db: ReturnType<typeof getDb>) {
+async function ensureTables(db: Awaited<ReturnType<typeof getTenantDb>>) {
   await db.execute(`CREATE TABLE IF NOT EXISTS Announcement (id TEXT PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL, type TEXT DEFAULT 'general', createdBy TEXT NOT NULL, createdByName TEXT, orgId TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL)`);
   await db.execute(`CREATE TABLE IF NOT EXISTS AnnouncementReaction (id TEXT PRIMARY KEY, announcementId TEXT NOT NULL, userId TEXT NOT NULL, emoji TEXT NOT NULL, createdAt TEXT NOT NULL, UNIQUE(announcementId, userId, emoji))`);
   // Add new columns safely
@@ -32,7 +24,7 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
-  const db = getDb();
+  const db = await getTenantDb(user.orgId);
   await ensureTables(db);
 
   const isAdmin = user.role === "MANAGER" || user.role === "HR";
@@ -104,7 +96,8 @@ export async function POST(req: NextRequest) {
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const db = getDb();
+  const db = await getTenantDb(user.orgId);
+  const prisma = await getPrismaForOrg(user.orgId);
   await ensureTables(db);
   const body = await req.json();
   const {
@@ -160,7 +153,8 @@ export async function PATCH(req: NextRequest) {
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const db = getDb();
+  const db = await getTenantDb(user.orgId);
+  const prisma = await getPrismaForOrg(user.orgId);
   const body = await req.json();
   const { id, title, body: announcementBody, type, imageBase64, status, scheduledAt, targetBranch, targetDepartment } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -199,7 +193,7 @@ export async function DELETE(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const db = getDb();
+  const db = await getTenantDb(user.orgId);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

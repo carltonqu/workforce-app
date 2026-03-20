@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForOrg, getTenantDb } from "@/lib/tenant";
 import bcrypt from "bcryptjs";
-import { createClient } from "@libsql/client";
-
-function getDb() {
-  return createClient({
-    url: (process.env.DATABASE_URL ?? "").replace("libsql://", "https://"),
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  });
-}
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
@@ -19,7 +11,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const db = getDb();
+  const prisma = await getPrismaForOrg(adminUser.orgId);
+  const db = await getTenantDb(adminUser.orgId);
+
   const empRes = await db.execute({ sql: "SELECT * FROM Employee WHERE id=?", args: [params.id] });
   if (!empRes.rows.length) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
   const emp = empRes.rows[0] as any;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForOrg } from "@/lib/tenant";
 import { randomUUID } from "crypto";
 
 // GET /api/employees - list all employees for the org
@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
   if (user.role !== "MANAGER" && user.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const prisma = await getPrismaForOrg(user.orgId);
 
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search") || "";
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
   if (user.role !== "MANAGER" && user.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const prisma = await getPrismaForOrg(user.orgId);
 
   const body = await req.json();
   const {

@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createClient } from "@libsql/client";
+import { getTenantDb } from "@/lib/tenant";
 import { randomUUID } from "crypto";
-
-function getDb() {
-  return createClient({
-    url: (process.env.DATABASE_URL ?? "").replace("libsql://", "https://"),
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  });
-}
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const db = getDb();
+  const db = await getTenantDb(user.orgId);
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") || "";
   const where = status ? `WHERE status='${status}'` : "";
@@ -28,7 +21,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const db = getDb();
+  const db = await getTenantDb(user.orgId);
   const body = await req.json();
   const id = randomUUID();
   const now = new Date().toISOString();
@@ -58,7 +51,7 @@ export async function PATCH(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const db = getDb();
+  const db = await getTenantDb(user.orgId);
   const body = await req.json();
   const now = new Date().toISOString();
   await db.execute({

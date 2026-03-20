@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForOrg } from "@/lib/tenant";
 
 function formatDate(d: Date): string {
   return d.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
@@ -12,10 +12,11 @@ export async function POST(
 ) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = session.user as { id: string; role: string };
+  const user = session.user as { id: string; role: string; orgId?: string };
   if (user.role !== "MANAGER" && user.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const prisma = await getPrismaForOrg(user.orgId ?? "");
 
   const { id } = await params;
 

@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createClient } from "@libsql/client";
-
-function getDb() {
-  return createClient({
-    url: (process.env.DATABASE_URL ?? "").replace("libsql://", "https://"),
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  });
-}
+import { getTenantDb } from "@/lib/tenant";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -16,7 +9,7 @@ export async function GET(req: NextRequest) {
   if (user.role !== "MANAGER" && user.role !== "HR")
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const db = getDb();
+  const db = await getTenantDb(user.orgId);
 
   const [
     totalRes,

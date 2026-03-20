@@ -1,16 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { createClient } from "@libsql/client";
+import { getPrismaForOrg, getTenantDb } from "@/lib/tenant";
 
-function getDb() {
-  return createClient({
-    url: (process.env.DATABASE_URL ?? "").replace("libsql://", "https://"),
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  });
-}
-
-async function findUserByEmployeeId(db: ReturnType<typeof createClient>, employeeId: string) {
+async function findUserByEmployeeId(db: Awaited<ReturnType<typeof getTenantDb>>, prisma: Awaited<ReturnType<typeof getPrismaForOrg>>, employeeId: string) {
   try {
     // LeaveRequest.employeeId is actually the User.id directly
     const user = await prisma.user.findUnique({ where: { id: employeeId } });
@@ -35,7 +27,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (user.role !== "MANAGER" && user.role !== "HR")
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const db = getDb();
+  const prisma = await getPrismaForOrg(user.orgId);
+  const db = await getTenantDb(user.orgId);
   const body = await req.json();
   const now = new Date().toISOString();
   const { status, adminComment, isLeave } = body;
@@ -54,7 +47,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const leave = leaveRow.rows[0];
 
     if (leave) {
-      const empUser = await findUserByEmployeeId(db, leave.employeeId as string);
+      const empUser = await findUserByEmployeeId(db, prisma, leave.employeeId as string);
 
       // Send notification to employee
       if (empUser) {
@@ -102,7 +95,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
               const newId = crypto.randomUUID();
               await db.execute({
                 sql: `INSERT INTO LeaveBalance (id, userId, leaveType, totalDays, usedDays, remainingDays, year, orgId, updatedAt) VALUES (?,?,?,?,?,?,?,?,?)`,
-                args: [newId, empUser.id, leaveType, totalDays, usedDays, remainingDays, new Date().getFullYear(), empUser.orgId ?? null, now],
+                args: [newId, empUser.id, leaveType, totalDays, usedDays, remainingDays, new Date().getFullYear(), (empUser as any).orgId ?? null, now],
               });
             }
           } catch (e) {
@@ -133,7 +126,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const request = requestRow.rows[0];
 
     if (request) {
-      const empUser = await findUserByEmployeeId(db, request.employeeId as string);
+      const empUser = await findUserByEmployeeId(db, prisma, request.employeeId as string);
       if (empUser) {
         const requestType = request.requestType as string;
         const isOTRequest =

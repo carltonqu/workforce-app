@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createClient } from "@libsql/client";
+import { getTenantDb } from "@/lib/tenant";
 import { randomUUID } from "crypto";
-
-function getDb() {
-  return createClient({
-    url: (process.env.DATABASE_URL ?? "").replace("libsql://", "https://"),
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  });
-}
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
-  const db = getDb();
+  const db = await getTenantDb(user.orgId);
   const rows = await db.execute({
     sql: "SELECT * FROM ApprovalRequest WHERE employeeId=? ORDER BY createdAt DESC",
     args: [user.id],
@@ -33,7 +26,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
-  const db = getDb();
+  const db = await getTenantDb(user.orgId);
   const body = await req.json();
   const { requestType, details, leaveType, startDate, endDate, days, reason } = body;
   const id = randomUUID();

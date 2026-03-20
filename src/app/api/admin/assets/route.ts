@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForOrg } from "@/lib/tenant";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = session.user as any;
+  const prisma = await getPrismaForOrg(user.orgId);
   const assets = await prisma.asset.findMany({ orderBy: { createdAt: "desc" } });
   return NextResponse.json(assets);
 }
@@ -12,6 +14,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = session.user as any;
+  const prisma = await getPrismaForOrg(user.orgId);
   const body = await req.json();
   const count = await prisma.asset.count();
   const assetCode = `AST-${String(count + 1).padStart(4, "0")}`;
@@ -26,7 +30,7 @@ export async function POST(req: NextRequest) {
       condition: body.condition || "Good",
       status: "Available",
       notes: body.notes || null,
-      orgId: (session.user as any)?.orgId || null,
+      orgId: user?.orgId || null,
     },
   });
   return NextResponse.json(asset, { status: 201 });

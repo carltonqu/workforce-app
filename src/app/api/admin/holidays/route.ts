@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForOrg } from "@/lib/tenant";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = session.user as any;
+  const prisma = await getPrismaForOrg(user.orgId);
 
   const { searchParams } = new URL(req.url);
   const year = searchParams.get("year") ? parseInt(searchParams.get("year")!) : new Date().getFullYear();
@@ -29,6 +31,7 @@ export async function POST(req: NextRequest) {
   if (user.role !== "MANAGER" && user.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const prisma = await getPrismaForOrg(user.orgId ?? "");
 
   const body = await req.json() as { name: string; date: string; type: string };
   const { name, date, type } = body;
@@ -51,10 +54,11 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const user = session.user as { id: string; role: string };
+  const user = session.user as { id: string; role: string; orgId?: string };
   if (user.role !== "MANAGER" && user.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const prisma = await getPrismaForOrg(user.orgId ?? "");
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

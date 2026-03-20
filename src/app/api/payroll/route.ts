@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForOrg } from "@/lib/tenant";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const userId = (session.user as any).id;
+  const user = session.user as any;
+  const userId = user.id;
+  const prisma = await getPrismaForOrg(user.orgId);
 
   const entries = await prisma.payrollEntry.findMany({
     where: { userId },
@@ -26,6 +28,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const prisma = await getPrismaForOrg(user.orgId);
   const data = await req.json();
 
   const entry = await prisma.payrollEntry.create({

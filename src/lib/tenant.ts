@@ -10,36 +10,74 @@ import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { createClient } from "@libsql/client";
 import { prisma as masterPrisma } from "@/lib/prisma";
 
-// Cache tenant Prisma clients to avoid re-creating on every request
+// Cache tenant Prisma clients and raw libsql clients per org
 const clientCache = new Map<string, PrismaClient>();
+const rawClientCache = new Map<string, ReturnType<typeof createClient>>();
+
+interface OrgDbCreds {
+  dbUrl: string;
+  dbAuthToken?: string;
+}
+const credsCache = new Map<string, OrgDbCreds>();
+
+/**
+ * Resolves DB credentials for an org (with caching).
+ */
+async function getOrgCreds(orgId: string): Promise<OrgDbCreds> {
+  if (credsCache.has(orgId)) return credsCache.get(orgId)!;
+
+  const org = await (masterPrisma as any).organization.findUnique({
+    where: { id: orgId },
+    select: { dbUrl: true, dbAuthToken: true },
+  });
+
+  const creds: OrgDbCreds = {
+    dbUrl: org?.dbUrl
+      ? org.dbUrl.replace("libsql://", "https://")
+      : (process.env.DATABASE_URL ?? "").replace("libsql://", "https://"),
+    dbAuthToken: org?.dbAuthToken ?? process.env.DATABASE_AUTH_TOKEN?.trim(),
+  };
+
+  credsCache.set(orgId, creds);
+  return creds;
+}
 
 /**
  * Returns a Prisma client for the given org's database.
  * Falls back to master DB if the org has no dedicated DB.
  */
 export async function getPrismaForOrg(orgId: string): Promise<PrismaClient> {
-  if (clientCache.has(orgId)) {
-    return clientCache.get(orgId)!;
-  }
+  if (clientCache.has(orgId)) return clientCache.get(orgId)!;
 
-  // Look up org's DB credentials from master DB
-  const org = await (masterPrisma as any).organization.findUnique({
-    where: { id: orgId },
-    select: { dbUrl: true, dbAuthToken: true },
-  });
-
-  // If org has its own DB, use it; otherwise fall back to master
-  const dbUrl = org?.dbUrl
-    ? org.dbUrl.replace("libsql://", "https://")
-    : (process.env.DATABASE_URL ?? "").replace("libsql://", "https://");
-
-  const authToken = org?.dbAuthToken ?? process.env.DATABASE_AUTH_TOKEN?.trim();
-
-  const adapter = new PrismaLibSql({ url: dbUrl, authToken: authToken ?? undefined });
+  const { dbUrl, dbAuthToken } = await getOrgCreds(orgId);
+  const adapter = new PrismaLibSql({ url: dbUrl, authToken: dbAuthToken ?? undefined });
   const client = new PrismaClient({ adapter } as any);
 
   clientCache.set(orgId, client);
   return client;
+}
+
+/**
+ * Returns a raw libsql client for the given org's database.
+ * Use this in routes that use raw SQL (createClient / getDb pattern).
+ */
+export async function getTenantDb(orgId: string): Promise<ReturnType<typeof createClient>> {
+  if (rawClientCache.has(orgId)) return rawClientCache.get(orgId)!;
+
+  const { dbUrl, dbAuthToken } = await getOrgCreds(orgId);
+  const client = createClient({ url: dbUrl, authToken: dbAuthToken ?? undefined });
+
+  rawClientCache.set(orgId, client);
+  return client;
+}
+
+/**
+ * Clears the cached clients for an org (call after provisioning a new DB).
+ */
+export function clearTenantCache(orgId: string): void {
+  clientCache.delete(orgId);
+  rawClientCache.delete(orgId);
+  credsCache.delete(orgId);
 }
 
 /**
