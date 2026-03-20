@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma as masterPrisma } from "@/lib/prisma";
+import { getPrismaForOrg } from "@/lib/tenant";
 
 export async function POST(req: NextRequest) {
   // Security: only callable server-side or via cron secret
@@ -11,29 +12,43 @@ export async function POST(req: NextRequest) {
 
   const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000);
 
-  // Find all open time entries where clockIn was >= 8 hours ago
-  const openEntries = await prisma.timeEntry.findMany({
-    where: { clockOut: null, clockIn: { lte: eightHoursAgo } },
+  // Get all orgs that have their own DB (tenant orgs)
+  const orgs = await (masterPrisma as any).organization.findMany({
+    select: { id: true },
   });
 
-  const results = [];
-  for (const entry of openEntries) {
-    const clockOut = new Date(entry.clockIn.getTime() + 8 * 60 * 60 * 1000); // exactly 8h after clock in
-    await prisma.timeEntry.update({
-      where: { id: entry.id },
-      data: { clockOut, overtimeMinutes: 0 },
-    });
-    // Notify employee
-    await prisma.notification.create({
-      data: {
-        userId: entry.userId,
-        type: "AUTO_CLOCKOUT",
-        message:
-          "You were automatically clocked out after 8 hours. If you worked overtime, use the OT Clock In button.",
-      },
-    });
-    results.push(entry.id);
+  let totalAutoClocked = 0;
+  const allIds: string[] = [];
+
+  for (const org of orgs) {
+    try {
+      const prisma = await getPrismaForOrg(org.id);
+
+      const openEntries = await prisma.timeEntry.findMany({
+        where: { clockOut: null, clockIn: { lte: eightHoursAgo } },
+      });
+
+      for (const entry of openEntries) {
+        const clockOut = new Date(entry.clockIn.getTime() + 8 * 60 * 60 * 1000);
+        await prisma.timeEntry.update({
+          where: { id: entry.id },
+          data: { clockOut, overtimeMinutes: 0 },
+        });
+        await prisma.notification.create({
+          data: {
+            userId: entry.userId,
+            type: "AUTO_CLOCKOUT",
+            message:
+              "You were automatically clocked out after 8 hours. If you worked overtime, use the OT Clock In button.",
+          },
+        });
+        allIds.push(entry.id);
+        totalAutoClocked++;
+      }
+    } catch (err) {
+      console.error(`[auto-clockout] Error processing org ${org.id}:`, err);
+    }
   }
 
-  return NextResponse.json({ autoClocked: results.length, ids: results });
+  return NextResponse.json({ autoClocked: totalAutoClocked, ids: allIds });
 }

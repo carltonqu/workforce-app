@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+// Debug route — uses master DB intentionally (demo accounts live there)
 export async function GET() {
   try {
     const user = await prisma.user.findUnique({
