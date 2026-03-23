@@ -19,6 +19,7 @@ import {
   TrendingUp,
   Megaphone,
   Package,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ const adminSections = [
       { href: "/attendance", label: "Attendance", icon: Activity, feature: null },
       { href: "/performance", label: "Performance", icon: TrendingUp, feature: null },
       { href: "/leave", label: "Leave Management", icon: Plane, feature: null },
+      { href: "/supervisor-assignments", label: "Supervisor Assignments", icon: ShieldCheck, feature: null },
     ],
   },
   {
