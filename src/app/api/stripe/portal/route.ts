@@ -3,9 +3,11 @@ import Stripe from "stripe";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
-  apiVersion: "2026-02-25.clover",
-});
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+  return new Stripe(key, { apiVersion: "2026-02-25.clover" });
+}
 
 export async function POST() {
   const session = await auth();
@@ -17,7 +19,8 @@ export async function POST() {
     return NextResponse.json({ error: "No billing account found" }, { status: 404 });
   }
 
-  const appUrl = process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://clockroster.com";
+  const stripe = getStripe();
+  const appUrl = process.env.NEXTAUTH_URL ?? "https://clockroster.com";
 
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: org.stripeCustomerId,

@@ -3,17 +3,18 @@ import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import type { Tier } from "@/lib/tier";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
-  apiVersion: "2026-02-25.clover",
-});
+function getStripe() {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
+  return new Stripe(key, { apiVersion: "2026-02-25.clover" });
+}
 
 const PLAN_TIERS: Record<string, Tier> = {
-  PRO:      "PRO",
+  PRO: "PRO",
   ADVANCED: "ADVANCED",
 };
 
 async function updateOrgTier(orgId: string, tier: Tier, stripeStatus: string, subscriptionId?: string) {
-  // Update org
   await prisma.organization.update({
     where: { id: orgId },
     data: {
@@ -22,17 +23,19 @@ async function updateOrgTier(orgId: string, tier: Tier, stripeStatus: string, su
       ...(subscriptionId ? { stripeSubscriptionId: subscriptionId } : {}),
     },
   });
-  // Update all users in the org to the same tier
-  await prisma.user.updateMany({
-    where: { orgId },
-    data: { tier },
-  });
+  await prisma.user.updateMany({ where: { orgId }, data: { tier } });
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature") ?? "";
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json({ error: "Stripe not configured" }, { status: 400 });
+  }
+
+  const stripe = getStripe();
 
   let event: Stripe.Event;
   try {
@@ -45,50 +48,49 @@ export async function POST(req: NextRequest) {
   try {
     switch (event.type) {
       case "checkout.session.completed": {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const orgId = session.metadata?.orgId;
-        const plan  = session.metadata?.plan as "PRO" | "ADVANCED" | undefined;
+        const cs = event.data.object as Stripe.Checkout.Session;
+        const orgId = cs.metadata?.orgId;
+        const plan = cs.metadata?.plan as "PRO" | "ADVANCED" | undefined;
         if (orgId && plan && PLAN_TIERS[plan]) {
-          await updateOrgTier(orgId, PLAN_TIERS[plan], "active", session.subscription as string);
+          await updateOrgTier(orgId, PLAN_TIERS[plan], "active", cs.subscription as string);
         }
         break;
       }
-
       case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription;
         const orgId = sub.metadata?.orgId;
-        const plan  = sub.metadata?.plan as "PRO" | "ADVANCED" | undefined;
+        const plan = sub.metadata?.plan as "PRO" | "ADVANCED" | undefined;
         if (orgId) {
           const tier: Tier = plan && PLAN_TIERS[plan] ? PLAN_TIERS[plan] : "FREE";
           await updateOrgTier(orgId, tier, sub.status, sub.id);
         }
         break;
       }
-
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
         const orgId = sub.metadata?.orgId;
-        if (orgId) {
-          await updateOrgTier(orgId, "FREE", "canceled");
-        }
+        if (orgId) await updateOrgTier(orgId, "FREE", "canceled");
         break;
       }
-
       case "invoice.payment_failed": {
+        // Use customer metadata to find org
         const invoice = event.data.object as Stripe.Invoice;
-        const sub = invoice.subscription
-          ? await stripe.subscriptions.retrieve(invoice.subscription as string)
-          : null;
-        const orgId = sub?.metadata?.orgId;
-        if (orgId) {
-          await prisma.organization.update({
-            where: { id: orgId },
-            data: { stripeStatus: "past_due" },
+        const customerId = typeof invoice.customer === "string"
+          ? invoice.customer
+          : (invoice.customer as any)?.id;
+        if (customerId) {
+          const org = await prisma.organization.findFirst({
+            where: { stripeCustomerId: customerId },
           });
+          if (org) {
+            await prisma.organization.update({
+              where: { id: org.id },
+              data: { stripeStatus: "past_due" },
+            });
+          }
         }
         break;
       }
-
       default:
         break;
     }

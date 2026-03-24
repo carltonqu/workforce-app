@@ -99,9 +99,17 @@ export function trialDaysLeft(trialEndsAt?: string | null): number {
   return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
 }
 
+export function getStripePriceIds(): Record<"PRO" | "ADVANCED", string> {
+  return {
+    PRO:      process.env.STRIPE_PRICE_PRO      ?? "",
+    ADVANCED: process.env.STRIPE_PRICE_ADVANCED ?? "",
+  };
+}
+
+// Keep a named export for backwards compat — accessed at runtime, not module init
 export const STRIPE_PRICE_IDS: Record<"PRO" | "ADVANCED", string> = {
-  PRO:      process.env.STRIPE_PRICE_PRO      ?? "",
-  ADVANCED: process.env.STRIPE_PRICE_ADVANCED ?? "",
+  get PRO()      { return process.env.STRIPE_PRICE_PRO      ?? ""; },
+  get ADVANCED() { return process.env.STRIPE_PRICE_ADVANCED ?? ""; },
 };
 
 export const PLAN_PRICES: Record<"PRO" | "ADVANCED", string> = {
