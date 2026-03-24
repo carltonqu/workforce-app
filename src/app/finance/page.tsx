@@ -1,24 +1,25 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForOrg } from "@/lib/tenant";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { FinanceClient } from "./finance-client";
 
 export default async function FinancePage() {
   const session = await auth();
-  const user = session?.user as { role?: string } | undefined;
-  if (!session?.user || (user?.role !== "MANAGER" && user?.role !== "HR")) {
-    redirect("/dashboard");
-  }
+  if (!session?.user) redirect("/login");
+  const user = session.user as { id?: string; role?: string; orgId?: string };
+  if (user?.role !== "MANAGER" && user?.role !== "HR") redirect("/dashboard");
 
-  // Fetch all payroll entries with user info
+  const prisma = await getPrismaForOrg(user.orgId ?? "");
+
+  // Fetch all payroll entries from TENANT DB
   const payrollEntries = await prisma.payrollEntry.findMany({
     include: { user: { select: { name: true, email: true } } },
     orderBy: { periodStart: "desc" },
   });
 
-  // Fetch all employees for department/branch grouping
-  const employees = await prisma.employee.findMany({
+  // Fetch all employees from TENANT DB
+  const employees = await (prisma as any).employee.findMany({
     orderBy: { department: "asc" },
   });
 

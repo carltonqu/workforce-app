@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForOrg } from "@/lib/tenant";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PayrollClient } from "./payroll-client";
 import { hasFeatureAccess, type Tier } from "@/lib/tier";
@@ -21,6 +21,7 @@ export default async function PayrollPage() {
     );
   }
 
+  const prisma = await getPrismaForOrg(user.orgId ?? "");
   const isAdmin = user.role === "MANAGER" || user.role === "HR";
 
   // Fetch User accounts (have login + can process payroll)
@@ -34,7 +35,7 @@ export default async function PayrollPage() {
 
   // Fetch ALL Employee profiles (includes those without user accounts)
   const employeeProfiles = isAdmin
-    ? await prisma.employee.findMany({
+    ? await (prisma as any).employee.findMany({
         select: {
           email: true,
           branchLocation: true,
@@ -48,15 +49,12 @@ export default async function PayrollPage() {
       })
     : [];
 
-  // Build merged employee list for payroll dropdown:
-  // - Start with User accounts (they have an id for payroll processing)
-  // - Add Employee profiles that have no matching User account yet (show as "no account" — can't process payroll but visible)
   const userEmailSet = new Set(userAccounts.map((u) => u.email));
 
   const employeesWithoutAccount = employeeProfiles
-    .filter((ep) => ep.employmentStatus !== "Terminated" && !userEmailSet.has(ep.email))
-    .map((ep) => ({
-      id: "", // no user account yet
+    .filter((ep: any) => ep.employmentStatus !== "Terminated" && !userEmailSet.has(ep.email))
+    .map((ep: any) => ({
+      id: "",
       name: ep.fullName,
       email: ep.email,
       role: "EMPLOYEE",
@@ -68,7 +66,7 @@ export default async function PayrollPage() {
     ...employeesWithoutAccount,
   ];
 
-  // Fetch payroll entries
+  // Fetch payroll entries — from TENANT DB
   const payrollEntriesRaw = isAdmin
     ? await prisma.payrollEntry.findMany({
         orderBy: { periodEnd: "desc" },
@@ -81,9 +79,9 @@ export default async function PayrollPage() {
         include: { user: { select: { name: true, email: true } } },
       });
 
-  // Fetch current-year holidays
+  // Fetch holidays — from TENANT DB
   const currentYear = new Date().getFullYear();
-  const holidaysRaw = await prisma.holiday.findMany({
+  const holidaysRaw = await (prisma as any).holiday.findMany({
     where: {
       date: {
         gte: new Date(`${currentYear}-01-01`),
@@ -93,11 +91,11 @@ export default async function PayrollPage() {
     orderBy: { date: "asc" },
   });
 
-  const payrollEntries = payrollEntriesRaw.map((p) => ({
+  const payrollEntries = payrollEntriesRaw.map((p: any) => ({
     id: p.id,
     userId: p.userId,
-    periodStart: p.periodStart.toISOString(),
-    periodEnd: p.periodEnd.toISOString(),
+    periodStart: p.periodStart instanceof Date ? p.periodStart.toISOString() : String(p.periodStart),
+    periodEnd: p.periodEnd instanceof Date ? p.periodEnd.toISOString() : String(p.periodEnd),
     periodType: p.periodType,
     status: p.status,
     rateType: p.rateType,
@@ -139,15 +137,15 @@ export default async function PayrollPage() {
     user: p.user ?? null,
   }));
 
-  const holidays = holidaysRaw.map((h) => ({
+  const holidays = holidaysRaw.map((h: any) => ({
     id: h.id,
     name: h.name,
     type: h.type,
     orgId: h.orgId ?? null,
-    date: h.date.toISOString(),
+    date: h.date instanceof Date ? h.date.toISOString() : String(h.date),
   }));
 
-  const safeEmployeeProfiles = employeeProfiles.map((ep) => ({
+  const safeEmployeeProfiles = employeeProfiles.map((ep: any) => ({
     email: ep.email,
     branchLocation: ep.branchLocation ?? null,
     department: ep.department ?? null,
