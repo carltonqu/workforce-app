@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const sessionUser = session.user as { id: string; role: string; orgId?: string };
-  if (sessionUser.role !== "MANAGER" && sessionUser.role !== "HR") {
+  if (sessionUser.role !== "MANAGER" && sessionUser.role !== "HR" && !(sessionUser as any).isSupervisor) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const sessionUser = session.user as { role: string; orgId?: string };
-  if (sessionUser.role !== "MANAGER" && sessionUser.role !== "HR") {
+  if (sessionUser.role !== "MANAGER" && sessionUser.role !== "HR" && !(sessionUser as any).isSupervisor) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

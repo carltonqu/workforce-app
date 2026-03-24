@@ -11,6 +11,9 @@ export default async function SchedulingPage() {
   if (!session?.user) redirect("/login");
 
   const user = session.user as any;
+  if (user.role !== "MANAGER" && user.role !== "HR" && !user.isSupervisor) {
+    redirect("/dashboard");
+  }
   const tier = user.tier || "FREE";
 
   if (!hasFeatureAccess(tier, "scheduling")) {

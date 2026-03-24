@@ -8,6 +8,7 @@ export default async function EmployeeDashboardPage() {
   if (!session?.user) redirect("/login");
   const user = session.user as any;
   if (user.role === "MANAGER" || user.role === "HR") redirect("/dashboard");
+  if (user.isSupervisor) redirect("/supervisor-dashboard");
   return (
     <DashboardLayout title="My Dashboard">
       <EmployeeDashboardClient user={user} />

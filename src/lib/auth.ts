@@ -4,7 +4,7 @@ import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@libsql/client";
-import { provisionTenantDb, initTenantSchema } from "@/lib/tenant";
+import { provisionTenantDb, initTenantSchema, getPrismaForOrg } from "@/lib/tenant";
 
 function getDb() {
   return createClient({
@@ -200,6 +200,37 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).role = token.role;
         (session.user as any).tier = token.tier;
         (session.user as any).orgId = token.orgId;
+
+        let isSupervisor = false;
+        try {
+          const role = (token.role as string) || "EMPLOYEE";
+          if (role === "MANAGER" || role === "HR") {
+            isSupervisor = true;
+          } else if (token.orgId && session.user.email) {
+            const orgPrisma = await getPrismaForOrg(token.orgId as string);
+            const me = await (orgPrisma as any).employee.findFirst({
+              where: {
+                email: session.user.email,
+                employmentStatus: "Active",
+              },
+              select: { fullName: true },
+            });
+
+            if (me?.fullName) {
+              const reports = await (orgPrisma as any).employee.count({
+                where: {
+                  reportingManager: me.fullName,
+                  employmentStatus: "Active",
+                },
+              });
+              isSupervisor = reports > 0;
+            }
+          }
+        } catch {
+          isSupervisor = false;
+        }
+
+        (session.user as any).isSupervisor = isSupervisor;
       }
       return session;
     },

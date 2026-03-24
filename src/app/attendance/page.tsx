@@ -7,7 +7,7 @@ export default async function AttendancePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   const user = session.user as any;
-  if (user.role !== "MANAGER" && user.role !== "HR") redirect("/dashboard");
+  if (user.role !== "MANAGER" && user.role !== "HR" && !user.isSupervisor) redirect("/dashboard");
   return (
     <DashboardLayout title="Attendance Monitoring">
       <AttendanceClient user={user} />

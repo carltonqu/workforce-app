@@ -77,6 +77,26 @@ import {
   User as UserIcon,
 } from "lucide-react";
 
+const supervisorSections = [
+  {
+    title: "Overview",
+    items: [
+      { href: "/supervisor-dashboard", label: "Supervisor Dashboard", icon: LayoutDashboard, feature: null },
+      { href: "/announcements", label: "Announcements", icon: Megaphone, feature: null },
+    ],
+  },
+  {
+    title: "Team Operations",
+    items: [
+      { href: "/attendance", label: "Attendance", icon: Activity, feature: null },
+      { href: "/performance", label: "Performance", icon: TrendingUp, feature: null },
+      { href: "/leave", label: "Leave Approvals", icon: Plane, feature: null },
+      { href: "/scheduling", label: "Scheduling", icon: Calendar, feature: "scheduling" as const },
+      { href: "/assets", label: "Assets", icon: Package, feature: null },
+    ],
+  },
+];
+
 const employeeSections = [
   {
     title: "Overview",
@@ -172,8 +192,9 @@ export function Sidebar() {
   const tier = (session?.user as any)?.tier || "FREE";
   const role = (session?.user as any)?.role || "EMPLOYEE";
   const isAdmin = role === "MANAGER" || role === "HR";
+  const isSupervisor = (session?.user as any)?.isSupervisor === true;
 
-  const sections = isAdmin ? adminSections : employeeSections;
+  const sections = isAdmin ? adminSections : isSupervisor ? supervisorSections : employeeSections;
 
   return (
     <aside className="hidden md:flex md:flex-col w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 min-h-screen">

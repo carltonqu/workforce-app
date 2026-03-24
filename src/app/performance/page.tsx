@@ -7,7 +7,7 @@ export default async function PerformancePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   const user = session.user as any;
-  if (user.role !== "MANAGER" && user.role !== "HR") redirect("/dashboard");
+  if (user.role !== "MANAGER" && user.role !== "HR" && !user.isSupervisor) redirect("/dashboard");
   return (
     <DashboardLayout title="Employee Performance">
       <PerformanceClient user={user} />
