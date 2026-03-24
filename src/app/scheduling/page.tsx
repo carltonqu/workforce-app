@@ -11,12 +11,12 @@ export default async function SchedulingPage() {
   if (!session?.user) redirect("/login");
 
   const user = session.user as any;
-  if (user.role !== "MANAGER" && user.role !== "HR" && !user.isSupervisor) {
-    redirect("/dashboard");
-  }
+  const isAdmin = user.role === "MANAGER" || user.role === "HR";
+  if (!isAdmin && !user.isSupervisor) redirect("/dashboard");
+
   const tier = user.tier || "FREE";
 
-  if (!hasFeatureAccess(tier, "scheduling")) {
+  if (isAdmin && !hasFeatureAccess(tier, "scheduling")) {
     return (
       <DashboardLayout title="Scheduling">
         <UpgradePrompt requiredTier="PRO" featureName="Drag & Drop Scheduling" />

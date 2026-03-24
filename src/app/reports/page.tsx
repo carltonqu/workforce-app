@@ -12,8 +12,9 @@ export default async function ReportsPage() {
 
   const user = session.user as any;
   const tier = user.tier || "FREE";
+  const isAdmin = user.role === "MANAGER" || user.role === "HR";
 
-  if (!hasFeatureAccess(tier, "reports")) {
+  if (isAdmin && !hasFeatureAccess(tier, "reports")) {
     return (
       <DashboardLayout title="Reports">
         <UpgradePrompt requiredTier="ADVANCED" featureName="Analytics & Reports" />

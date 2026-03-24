@@ -12,6 +12,7 @@ export default async function ApprovalsPage() {
   if (user.role !== "MANAGER" && user.role !== "HR") redirect("/dashboard");
 
   const tier = (user.tier ?? "FREE") as Tier;
+
   if (!hasFeatureAccess(tier, "approvals")) {
     return (
       <DashboardLayout title="Approvals">

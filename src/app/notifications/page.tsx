@@ -12,8 +12,9 @@ export default async function NotificationsPage() {
 
   const user = session.user as any;
   const tier = user.tier || "FREE";
+  const isAdmin = user.role === "MANAGER" || user.role === "HR";
 
-  if (!hasFeatureAccess(tier, "notifications")) {
+  if (isAdmin && !hasFeatureAccess(tier, "notifications")) {
     return (
       <DashboardLayout title="Notifications">
         <UpgradePrompt requiredTier="PRO" featureName="Smart Notifications" />

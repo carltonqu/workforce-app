@@ -13,7 +13,7 @@ export default async function FinancePage() {
   if (user?.role !== "MANAGER" && user?.role !== "HR") redirect("/dashboard");
 
   const tier = (user.tier ?? "FREE") as Tier;
-  if (!hasFeatureAccess(tier, "finance")) {
+  if (!hasFeatureAccess(tier, "finance")) {  // admin-only page, always gate
     return (
       <DashboardLayout title="Finance Summary">
         <UpgradePrompt requiredTier="ADVANCED" featureName="Finance Reports" />

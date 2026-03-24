@@ -9,10 +9,11 @@ export default async function AssetsPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   const user = session.user as any;
-  if (user.role !== "MANAGER" && user.role !== "HR" && !user.isSupervisor) redirect("/employee-dashboard");
+  const isAdmin = user.role === "MANAGER" || user.role === "HR";
+  if (!isAdmin && !user.isSupervisor) redirect("/employee-dashboard");
 
   const tier = (user.tier ?? "FREE") as Tier;
-  if (!hasFeatureAccess(tier, "assets")) {
+  if (isAdmin && !hasFeatureAccess(tier, "assets")) {
     return (
       <DashboardLayout title="Assets">
         <UpgradePrompt requiredTier="PRO" featureName="Asset Management" />

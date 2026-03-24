@@ -31,33 +31,33 @@ const adminSections = [
   {
     title: "Overview",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, feature: null },
-      { href: "/announcements", label: "Announcements", icon: Megaphone, feature: null },
+      { href: "/dashboard",     label: "Dashboard",     icon: LayoutDashboard, feature: null },
+      { href: "/announcements", label: "Announcements", icon: Megaphone,        feature: "announcements" as const },
     ],
   },
   {
     title: "People",
     items: [
-      { href: "/employees", label: "Employees", icon: Users, feature: null },
-      { href: "/attendance", label: "Attendance", icon: Activity, feature: null },
-      { href: "/performance", label: "Performance", icon: TrendingUp, feature: null },
-      { href: "/leave", label: "Leave Management", icon: Plane, feature: null },
-      { href: "/supervisor-assignments", label: "Supervisor Assignments", icon: ShieldCheck, feature: null },
+      { href: "/employees",              label: "Employees",              icon: Users,       feature: "employees"   as const },
+      { href: "/attendance",             label: "Attendance",             icon: Activity,    feature: "attendance"  as const },
+      { href: "/performance",            label: "Performance",            icon: TrendingUp,  feature: "performance" as const },
+      { href: "/leave",                  label: "Leave Management",       icon: Plane,       feature: "approvals"   as const },
+      { href: "/supervisor-assignments", label: "Supervisor Assignments", icon: ShieldCheck, feature: "employees"   as const },
     ],
   },
   {
     title: "Operations",
     items: [
-      { href: "/scheduling", label: "Scheduling", icon: Calendar, feature: "scheduling" as const },
-      { href: "/approvals", label: "Approvals", icon: ClipboardCheck, feature: null },
-      { href: "/assets", label: "Assets", icon: Package, feature: null },
+      { href: "/scheduling", label: "Scheduling", icon: Calendar,     feature: "scheduling" as const },
+      { href: "/approvals",  label: "Approvals",  icon: ClipboardCheck, feature: "approvals" as const },
+      { href: "/assets",     label: "Assets",     icon: Package,       feature: "assets"     as const },
     ],
   },
   {
     title: "Finance",
     items: [
-      { href: "/payroll", label: "Payroll", icon: DollarSign, feature: "payroll" as const },
-      { href: "/finance", label: "Finance Summary", icon: TrendingUp, feature: null },
+      { href: "/payroll", label: "Payroll",          icon: DollarSign, feature: "payroll"  as const },
+      { href: "/finance", label: "Finance Summary",  icon: TrendingUp, feature: "finance"  as const },
     ],
   },
   {
@@ -181,6 +181,7 @@ function NavLink({
   icon: Icon,
   feature,
   tier,
+  isAdmin,
   pathname,
 }: {
   href: string;
@@ -188,11 +189,13 @@ function NavLink({
   icon: React.ElementType;
   feature: string | null;
   tier: string;
+  isAdmin: boolean;
   pathname: string;
 }) {
   const isActive = pathname === href;
   const validTier: Tier = (["FREE", "PRO", "ADVANCED"] as Tier[]).includes(tier as Tier) ? (tier as Tier) : "FREE";
-  const hasAccess = !feature || hasFeatureAccess(validTier, feature as Feature);
+  // Feature gates only apply to admins — employees/supervisors always have access
+  const hasAccess = !feature || !isAdmin || hasFeatureAccess(validTier, feature as Feature);
 
   return (
     <Link
@@ -201,13 +204,18 @@ function NavLink({
         "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
         isActive
           ? "bg-blue-50 text-blue-700"
-          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-        !hasAccess && "opacity-60"
+          : hasAccess
+            ? "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            : "text-gray-400 hover:bg-orange-50 hover:text-orange-600"
       )}
     >
-      <Icon className="w-5 h-5 flex-shrink-0" />
+      <Icon className={cn("w-5 h-5 flex-shrink-0", !hasAccess && "opacity-50")} />
       <span className="flex-1">{label}</span>
-      {!hasAccess && <Lock className="w-3 h-3" />}
+      {!hasAccess && (
+        <span className="text-[9px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
+          {validTier === "FREE" ? "PRO" : "ADV"}
+        </span>
+      )}
     </Link>
   );
 }
@@ -253,6 +261,7 @@ export function Sidebar() {
                   icon={item.icon}
                   feature={item.feature}
                   tier={tier}
+                  isAdmin={isAdmin}
                   pathname={pathname}
                 />
               ))}

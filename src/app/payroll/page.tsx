@@ -12,8 +12,9 @@ export default async function PayrollPage() {
 
   const user = session.user as { id: string; role: string; tier?: string; orgId?: string };
   const tier = (user.tier ?? "FREE") as Tier;
+  const isAdminUser = user.role === "MANAGER" || user.role === "HR";
 
-  if (!hasFeatureAccess(tier, "payroll")) {
+  if (isAdminUser && !hasFeatureAccess(tier, "payroll")) {
     return (
       <DashboardLayout title="Payroll">
         <UpgradePrompt requiredTier="ADVANCED" featureName="Automated Payroll" />

@@ -47,10 +47,14 @@ export function TrialExpiredGate({ children }: { children: React.ReactNode }) {
   const user = session?.user as any;
 
   const tier = user?.tier ?? "FREE";
+  const role = user?.role ?? "EMPLOYEE";
   const trialEndsAt = user?.trialEndsAt ?? null;
   const stripeStatus = user?.stripeStatus ?? null;
 
-  const expired = isTrialExpired(tier, trialEndsAt, stripeStatus);
+  // Only admins (MANAGER/HR) are subject to billing gates
+  // Employees and supervisors always have access (they don't manage billing)
+  const isAdmin = role === "MANAGER" || role === "HR";
+  const expired = isAdmin && isTrialExpired(tier, trialEndsAt, stripeStatus);
 
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState("");

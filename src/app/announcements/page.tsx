@@ -11,8 +11,9 @@ export default async function AnnouncementsPage() {
   if (!session?.user) redirect("/login");
   const user = session.user as any;
   const tier = (user.tier ?? "FREE") as Tier;
+  const isAdmin = user.role === "MANAGER" || user.role === "HR";
 
-  if (!hasFeatureAccess(tier, "announcements")) {
+  if (isAdmin && !hasFeatureAccess(tier, "announcements")) {
     return (
       <DashboardLayout title="Announcements">
         <UpgradePrompt requiredTier="PRO" featureName="Announcements" />
