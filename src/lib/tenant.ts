@@ -163,6 +163,10 @@ export async function initTenantSchema(dbUrl: string, dbAuthToken: string): Prom
       "tier" TEXT NOT NULL DEFAULT 'FREE',
       "dbUrl" TEXT,
       "dbAuthToken" TEXT,
+      "trialEndsAt" DATETIME,
+      "stripeCustomerId" TEXT,
+      "stripeSubscriptionId" TEXT,
+      "stripeStatus" TEXT,
       "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" DATETIME NOT NULL
     )`,
@@ -412,6 +416,10 @@ export async function initTenantSchema(dbUrl: string, dbAuthToken: string): Prom
     'ALTER TABLE User ADD COLUMN emailVerified INTEGER DEFAULT 1',
     'ALTER TABLE User ADD COLUMN linkedEmployeeId TEXT',
     'ALTER TABLE Employee ADD COLUMN orgId TEXT',
+    'ALTER TABLE Organization ADD COLUMN trialEndsAt DATETIME',
+    'ALTER TABLE Organization ADD COLUMN stripeCustomerId TEXT',
+    'ALTER TABLE Organization ADD COLUMN stripeSubscriptionId TEXT',
+    'ALTER TABLE Organization ADD COLUMN stripeStatus TEXT',
   ];
   for (const sql of extraCols) {
     try { await db.execute(sql); } catch {}

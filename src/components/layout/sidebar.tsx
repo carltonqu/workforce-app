@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { hasFeatureAccess, TIER_COLORS, TIER_LABELS, type Tier, type Feature } from "@/lib/tier";
+import { hasFeatureAccess, TIER_COLORS, TIER_LABELS, trialDaysLeft, type Tier, type Feature } from "@/lib/tier";
 
 // ─── Admin Nav Structure ───────────────────────────────────────────────────────
 
@@ -221,6 +221,9 @@ export function Sidebar() {
   const role = (session?.user as any)?.role || "EMPLOYEE";
   const isAdmin = role === "MANAGER" || role === "HR";
   const isSupervisor = (session?.user as any)?.isSupervisor === true;
+  const trialEndsAt = (session?.user as any)?.trialEndsAt ?? null;
+  const daysLeft = trialDaysLeft(trialEndsAt);
+  const showTrialBadge = tier === "FREE" && daysLeft > 0;
 
   const sections = isAdmin ? adminSections : isSupervisor ? supervisorSections : employeeSections;
 
@@ -257,6 +260,14 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
+
+      {/* Trial countdown */}
+      {showTrialBadge && (
+        <div className="mx-4 mb-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200">
+          <p className="text-xs font-semibold text-blue-700">⏱ Trial: {daysLeft}d left</p>
+          <Link href="/settings#upgrade" className="text-xs text-blue-500 hover:underline">Upgrade now →</Link>
+        </div>
+      )}
 
       {/* Bottom: role + plan badges */}
       <div className="p-4 border-t border-gray-200 space-y-2">

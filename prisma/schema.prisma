@@ -27,6 +27,11 @@ model Organization {
   tier         Tier     @default(FREE)
   dbUrl        String?  // Tenant Turso DB URL (null = uses master DB)
   dbAuthToken  String?  // Tenant Turso DB auth token
+  // Trial & Billing
+  trialEndsAt         DateTime?
+  stripeCustomerId    String?
+  stripeSubscriptionId String?
+  stripeStatus        String?   // active, trialing, past_due, canceled, etc.
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

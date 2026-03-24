@@ -63,22 +63,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email already verified. Please login." }, { status: 409 });
     }
 
-    // Create tenant org for this admin
+    // Create tenant org for this admin — start 14-day free trial
+    const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
     const org = await prisma.organization.create({
       data: {
         name: String(pending.companyName),
-        tier: "ADVANCED",
+        tier: "FREE",
+        trialEndsAt,
+        stripeStatus: "trialing",
       },
     });
 
-    // Create admin user
+    // Create admin user on FREE tier (trial)
     const user = await prisma.user.create({
       data: {
         name: String(pending.name),
         email,
         password: String(pending.passwordHash),
         role: "MANAGER",
-        tier: "ADVANCED",
+        tier: "FREE",
         orgId: org.id,
       },
     });

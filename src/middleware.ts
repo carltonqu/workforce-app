@@ -3,11 +3,12 @@ import { getToken } from "next-auth/jwt";
 
 const publicPaths = ["/", "/login", "/signup"];
 
+// Pages that remain accessible even after trial expiry (so user can upgrade)
+const TRIAL_EXPIRED_ALLOWED = ["/settings", "/login", "/signup", "/"];
+
 export async function middleware(req: NextRequest) {
   const { nextUrl } = req;
 
-  // NextAuth v5 uses __Secure-authjs.session-token on HTTPS
-  // and authjs.session-token on HTTP — try both
   const token =
     (await getToken({
       req,
@@ -32,6 +33,28 @@ export async function middleware(req: NextRequest) {
   if (isLoggedIn && nextUrl.pathname === "/login") {
     const redirect = nextUrl.searchParams.get("redirect") || "/dashboard";
     return NextResponse.redirect(new URL(redirect, nextUrl));
+  }
+
+  // Trial expiry check
+  if (isLoggedIn && token) {
+    const tier = (token.tier as string) ?? "FREE";
+    const trialEndsAt = (token.trialEndsAt as string) ?? null;
+    const stripeStatus = (token.stripeStatus as string) ?? null;
+
+    const trialExpired =
+      tier === "FREE" &&
+      stripeStatus !== "active" &&
+      stripeStatus !== "trialing" &&
+      trialEndsAt &&
+      new Date(trialEndsAt).getTime() < Date.now();
+
+    const isAllowed = TRIAL_EXPIRED_ALLOWED.some(
+      (p) => nextUrl.pathname === p || nextUrl.pathname.startsWith(p + "?")
+    );
+
+    if (trialExpired && !isAllowed) {
+      return NextResponse.redirect(new URL("/settings?trial_expired=1", nextUrl));
+    }
   }
 
   return NextResponse.next();

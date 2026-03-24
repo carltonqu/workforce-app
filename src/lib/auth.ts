@@ -71,6 +71,20 @@ const providers = [
         // If check fails, do not block legacy flows
       }
 
+      // Fetch trial/stripe info from org
+      let trialEndsAt: string | null = null;
+      let stripeStatus: string | null = null;
+      if (user.orgId) {
+        try {
+          const org = await prisma.organization.findUnique({
+            where: { id: user.orgId },
+            select: { trialEndsAt: true, stripeStatus: true },
+          });
+          trialEndsAt = org?.trialEndsAt?.toISOString() ?? null;
+          stripeStatus = org?.stripeStatus ?? null;
+        } catch {}
+      }
+
       return {
         id: user.id,
         name: user.name,
@@ -78,6 +92,8 @@ const providers = [
         role: user.role,
         tier: user.tier,
         orgId: user.orgId,
+        trialEndsAt,
+        stripeStatus,
       };
     },
   }),
@@ -179,6 +195,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = (user as any).role;
         token.tier = (user as any).tier;
         token.orgId = (user as any).orgId;
+        token.trialEndsAt = (user as any).trialEndsAt ?? null;
+        token.stripeStatus = (user as any).stripeStatus ?? null;
       }
 
       // Google flow: enrich token from DB
@@ -200,6 +218,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         (session.user as any).role = token.role;
         (session.user as any).tier = token.tier;
         (session.user as any).orgId = token.orgId;
+        (session.user as any).trialEndsAt = token.trialEndsAt ?? null;
+        (session.user as any).stripeStatus = token.stripeStatus ?? null;
 
         let isSupervisor = false;
         try {
