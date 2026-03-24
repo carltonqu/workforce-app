@@ -27,6 +27,17 @@ interface ApprovalItem {
   createdAt: string;
 }
 
+interface FinancialSummary {
+  month: string;
+  totalGross: number;
+  totalNet: number;
+  totalDeductions: number;
+  entryCount: number;
+  draftCount: number;
+  approvedCount: number;
+  releasedCount: number;
+}
+
 interface AdminStats {
   totalEmployees: number;
   activeEmployees: number;
@@ -40,6 +51,7 @@ interface AdminStats {
   todayAttendance: AttendanceRecord[];
   pendingApprovalsList: ApprovalItem[];
   recentActivity: { id: string; employeeName: string; action: string; time: string }[];
+  financialSummary?: FinancialSummary;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -126,38 +138,89 @@ export function AdminDashboardClient({ user: _user }: { user: any }) {
       </div>
 
       {/* ── Financial Summary (admin only) ── */}
-      <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 p-5 text-white shadow-md">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-              <DollarSign className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-blue-100 uppercase tracking-wider">Financial Overview</p>
-              <p className="text-2xl font-bold mt-0.5">
-                {stats.payrollAlerts > 0
-                  ? `${stats.payrollAlerts} alert${stats.payrollAlerts > 1 ? "s" : ""} pending`
-                  : "All payroll up to date"}
-              </p>
-              <div className="flex items-center gap-4 mt-2 text-sm text-blue-100">
-                <span className="flex items-center gap-1">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  {stats.activeEmployees} active employees on payroll
-                </span>
-                <span className="flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  {stats.payrollAlerts} need action
-                </span>
+      {(() => {
+        const fs = stats.financialSummary;
+        const fmt = (v: number) =>
+          "₱" + v.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const hasData = fs && fs.entryCount > 0;
+        return (
+          <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 p-5 text-white shadow-md">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex items-start gap-3 flex-1">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <DollarSign className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-blue-100 uppercase tracking-wider">
+                    Financial Overview — {fs?.month ?? "This Month"}
+                  </p>
+
+                  {hasData ? (
+                    <>
+                      {/* Main figure */}
+                      <p className="text-3xl font-bold mt-1 tracking-tight">{fmt(fs!.totalNet)}</p>
+                      <p className="text-xs text-blue-200 mt-0.5">Total Net Pay this month</p>
+
+                      {/* Breakdown row */}
+                      <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3">
+                        <div>
+                          <p className="text-[10px] text-blue-200 uppercase tracking-wider">Gross Pay</p>
+                          <p className="text-sm font-semibold">{fmt(fs!.totalGross)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-blue-200 uppercase tracking-wider">Deductions</p>
+                          <p className="text-sm font-semibold">{fmt(fs!.totalDeductions)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-blue-200 uppercase tracking-wider">Payslips</p>
+                          <p className="text-sm font-semibold">{fs!.entryCount}</p>
+                        </div>
+                      </div>
+
+                      {/* Status pills */}
+                      <div className="flex gap-2 mt-3 flex-wrap">
+                        {fs!.releasedCount > 0 && (
+                          <span className="text-xs bg-green-500/30 text-green-100 px-2 py-0.5 rounded-full font-medium">
+                            {fs!.releasedCount} Released
+                          </span>
+                        )}
+                        {fs!.approvedCount > 0 && (
+                          <span className="text-xs bg-yellow-400/30 text-yellow-100 px-2 py-0.5 rounded-full font-medium">
+                            {fs!.approvedCount} Approved
+                          </span>
+                        )}
+                        {fs!.draftCount > 0 && (
+                          <span className="text-xs bg-white/20 text-blue-100 px-2 py-0.5 rounded-full font-medium">
+                            {fs!.draftCount} Draft
+                          </span>
+                        )}
+                        {stats.payrollAlerts > 0 && (
+                          <span className="text-xs bg-red-400/30 text-red-100 px-2 py-0.5 rounded-full font-medium">
+                            ⚠ {stats.payrollAlerts} missing info
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xl font-bold mt-1">No payroll data this month</p>
+                      <p className="text-xs text-blue-200 mt-1">
+                        {stats.activeEmployees} active employees · {stats.payrollAlerts} missing payroll info
+                      </p>
+                    </>
+                  )}
+                </div>
               </div>
+
+              <Link href="/finance" className="flex-shrink-0 self-start">
+                <button className="flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 transition px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap">
+                  Full Report <ArrowRight className="w-4 h-4" />
+                </button>
+              </Link>
             </div>
           </div>
-          <Link href="/finance">
-            <button className="flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 transition px-4 py-2 rounded-xl text-sm font-semibold flex-shrink-0">
-              Full Report <ArrowRight className="w-4 h-4" />
-            </button>
-          </Link>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* ── KPI Row ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

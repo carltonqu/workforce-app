@@ -11,6 +11,11 @@ export async function GET(req: NextRequest) {
 
   const db = await getTenantDb(user.orgId);
 
+  // Month boundaries (SQLite-safe ISO strings)
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
   const [
     totalRes,
     activeRes,
@@ -23,6 +28,7 @@ export async function GET(req: NextRequest) {
     todayAttRes,
     pendingApprListRes,
     recentActRes,
+    payrollMonthRes,
   ] = await Promise.all([
     // Employee counts
     db.execute("SELECT COUNT(*) as cnt FROM Employee"),
@@ -65,6 +71,23 @@ export async function GET(req: NextRequest) {
       FROM ApprovalRequest WHERE status='Pending' ORDER BY createdAt DESC LIMIT 20
     `),
 
+    // This-month payroll summary (all entries with periodEnd in current month)
+    db.execute({
+      sql: `
+        SELECT
+          COUNT(*)                         AS entryCount,
+          COALESCE(SUM(grossPay), 0)       AS totalGross,
+          COALESCE(SUM(netPay),   0)       AS totalNet,
+          COALESCE(SUM(totalOtherDeductions + sssEmployee + philhealthEmployee + pagibigEmployee + withholdingTax), 0) AS totalDeductions,
+          SUM(CASE WHEN status='DRAFT'    THEN 1 ELSE 0 END) AS draftCount,
+          SUM(CASE WHEN status='APPROVED' THEN 1 ELSE 0 END) AS approvedCount,
+          SUM(CASE WHEN status='RELEASED' THEN 1 ELSE 0 END) AS releasedCount
+        FROM PayrollEntry
+        WHERE periodEnd >= ? AND periodEnd <= ?
+      `,
+      args: [monthStart, monthEnd],
+    }),
+
     // Recent activity — from real TimeEntry
     db.execute(`
       SELECT
@@ -95,6 +118,18 @@ export async function GET(req: NextRequest) {
     overtimeMinutes: Number(r.overtimeMinutes ?? 0),
   }));
 
+  const pr = payrollMonthRes.rows[0] as any;
+  const financialSummary = {
+    month: now.toLocaleString("en-US", { month: "long", year: "numeric" }),
+    totalGross:      Number(pr?.totalGross      ?? 0),
+    totalNet:        Number(pr?.totalNet        ?? 0),
+    totalDeductions: Number(pr?.totalDeductions ?? 0),
+    entryCount:      Number(pr?.entryCount      ?? 0),
+    draftCount:      Number(pr?.draftCount      ?? 0),
+    approvedCount:   Number(pr?.approvedCount   ?? 0),
+    releasedCount:   Number(pr?.releasedCount   ?? 0),
+  };
+
   return NextResponse.json({
     totalEmployees: n(totalRes),
     activeEmployees: n(activeRes),
@@ -116,6 +151,7 @@ export async function GET(req: NextRequest) {
       priority: r.priority,
       createdAt: r.createdAt,
     })),
+    financialSummary,
     recentActivity: recentActRes.rows.map((r: any) => ({
       id: r.id,
       employeeName: r.employeeName,
