@@ -219,7 +219,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (me?.fullName) {
               const reports = await (orgPrisma as any).employee.count({
                 where: {
-                  reportingManager: me.fullName,
+                  reportingManager: {
+                    contains: me.fullName,
+                  },
                   employmentStatus: "Active",
                 },
               });
