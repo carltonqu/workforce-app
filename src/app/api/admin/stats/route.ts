@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
     todayAttRes,
     pendingApprListRes,
     recentActRes,
+    expectedSalaryRes,
     payrollMonthRes,
   ] = await Promise.all([
     // Employee counts
@@ -70,6 +71,9 @@ export async function GET(req: NextRequest) {
       SELECT id, employeeId, employeeName, department, requestType, details, status, priority, createdAt
       FROM ApprovalRequest WHERE status='Pending' ORDER BY createdAt DESC LIMIT 20
     `),
+
+    // Expected total salary this month (sum of active employee salaryRate)
+    db.execute("SELECT COALESCE(SUM(salaryRate), 0) AS expectedTotal, COUNT(*) AS empCount FROM Employee WHERE employmentStatus='Active' AND salaryRate IS NOT NULL"),
 
     // This-month payroll summary (all entries with periodEnd in current month)
     db.execute({
@@ -121,8 +125,10 @@ export async function GET(req: NextRequest) {
   }));
 
   const pr = payrollMonthRes.rows[0] as any;
+  const es = expectedSalaryRes.rows[0] as any;
   const financialSummary = {
-    month:          now.toLocaleString("en-US", { month: "long", year: "numeric" }),
+    month:           now.toLocaleString("en-US", { month: "long", year: "numeric" }),
+    expectedTotal:   Number(es?.expectedTotal  ?? 0),
     totalGross:     Number(pr?.totalGross     ?? 0),
     totalNet:       Number(pr?.totalNet       ?? 0),
     totalDeductions:Number(pr?.totalDeductions?? 0),

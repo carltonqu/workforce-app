@@ -34,6 +34,7 @@ interface FinancialSummary {
   totalDeductions: number;
   totalReleased: number;
   totalApproved: number;
+  expectedTotal: number;
   entryCount: number;
   draftCount: number;
   approvedCount: number;
@@ -219,10 +220,16 @@ export function AdminDashboardClient({ user: _user }: { user: any }) {
                     </>
                   ) : (
                     <>
-                      <p className="text-xl font-bold mt-1">No payroll data this month</p>
+                      <p className="text-[10px] text-blue-200 uppercase tracking-wider mt-1">Total Required Cash Out This Month</p>
+                      <p className="text-3xl font-bold tracking-tight">{fmt(fs?.expectedTotal ?? 0)}</p>
                       <p className="text-xs text-blue-200 mt-1">
-                        {stats.activeEmployees} active employees · {stats.payrollAlerts} missing payroll info
+                        Based on {stats.activeEmployees} active employee salary rates · No payslips processed yet
                       </p>
+                      {stats.payrollAlerts > 0 && (
+                        <span className="inline-block mt-2 text-xs bg-red-400/30 text-red-100 px-2 py-0.5 rounded-full font-medium">
+                          ⚠ {stats.payrollAlerts} employees missing salary info
+                        </span>
+                      )}
                     </>
                   )}
                 </div>
