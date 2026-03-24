@@ -210,6 +210,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
+      // Always refresh tier + trial from DB (keeps sidebar in sync after upgrades)
+      if (!user && token.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { tier: true, orgId: true },
+          });
+          if (dbUser) {
+            token.tier = dbUser.tier;
+            token.orgId = dbUser.orgId;
+          }
+          if (dbUser?.orgId) {
+            const org = await prisma.organization.findUnique({
+              where: { id: dbUser.orgId },
+              select: { trialEndsAt: true, stripeStatus: true },
+            });
+            token.trialEndsAt = org?.trialEndsAt?.toISOString() ?? null;
+            token.stripeStatus = org?.stripeStatus ?? null;
+          }
+        } catch {}
+      }
+
       return token;
     },
     async session({ session, token }) {

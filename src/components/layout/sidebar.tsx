@@ -261,37 +261,66 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Trial countdown */}
-      {showTrialBadge && (
-        <div className="mx-4 mb-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200">
-          <p className="text-xs font-semibold text-blue-700">⏱ Trial: {daysLeft}d left</p>
-          <Link href="/settings#upgrade" className="text-xs text-blue-500 hover:underline">Upgrade now →</Link>
-        </div>
-      )}
+      {/* Bottom plan card */}
+      <div className="p-3 border-t border-gray-200">
 
-      {/* Bottom: role + plan badges */}
-      <div className="p-4 border-t border-gray-200 space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Role:</span>
+        {/* Plan card */}
+        <Link href="/settings">
+          <div className={cn(
+            "rounded-xl px-3 py-2.5 mb-2 cursor-pointer transition hover:opacity-90",
+            tier === "ADVANCED"
+              ? "bg-gradient-to-r from-purple-500 to-purple-700 text-white"
+              : tier === "PRO"
+              ? "bg-gradient-to-r from-blue-500 to-blue-700 text-white"
+              : "bg-gray-50 border border-gray-200"
+          )}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className={cn("text-[10px] font-semibold uppercase tracking-widest", tier === "FREE" ? "text-gray-400" : "text-white/70")}>
+                  Current Plan
+                </p>
+                <p className={cn("text-sm font-bold mt-0.5", tier === "FREE" ? "text-gray-800" : "text-white")}>
+                  {TIER_LABELS[tier as keyof typeof TIER_LABELS] ?? tier}
+                </p>
+                {tier === "FREE" && daysLeft > 0 && (
+                  <p className="text-[10px] text-orange-500 font-medium mt-0.5">⏱ {daysLeft} days left</p>
+                )}
+                {tier === "FREE" && daysLeft === 0 && (
+                  <p className="text-[10px] text-red-500 font-medium mt-0.5">Trial expired</p>
+                )}
+                {tier === "ADVANCED" && (
+                  <p className="text-[10px] text-white/70 mt-0.5">Full access</p>
+                )}
+                {tier === "PRO" && (
+                  <p className="text-[10px] text-white/70 mt-0.5">Core features</p>
+                )}
+              </div>
+              <div className={cn(
+                "w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0",
+                tier === "ADVANCED" ? "bg-white/20" : tier === "PRO" ? "bg-white/20" : "bg-gray-200"
+              )}>
+                {tier === "ADVANCED" ? "👑" : tier === "PRO" ? "⚡" : "🔒"}
+              </div>
+            </div>
+            {tier !== "ADVANCED" && (
+              <p className={cn("text-[10px] mt-1.5 font-medium", tier === "FREE" ? "text-blue-600" : "text-white/80")}>
+                {tier === "FREE" ? "Upgrade to unlock more →" : "Upgrade to Advanced →"}
+              </p>
+            )}
+          </div>
+        </Link>
+
+        {/* Role badge */}
+        <div className="flex items-center gap-2 px-1">
+          <span className="text-xs text-gray-400">Role:</span>
           <Badge
             variant="outline"
             className={cn(
               "text-xs",
-              isAdmin
-                ? "border-blue-300 text-blue-700"
-                : "border-gray-300 text-gray-600"
+              isAdmin ? "border-blue-300 text-blue-700" : "border-gray-300 text-gray-500"
             )}
           >
             {role}
-          </Badge>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Plan:</span>
-          <Badge
-            className={cn("text-xs", TIER_COLORS[tier as keyof typeof TIER_COLORS])}
-            variant="outline"
-          >
-            {TIER_LABELS[tier as keyof typeof TIER_LABELS]}
           </Badge>
         </div>
       </div>
