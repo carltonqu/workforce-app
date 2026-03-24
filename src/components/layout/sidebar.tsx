@@ -95,6 +95,34 @@ const supervisorSections = [
       { href: "/assets", label: "Assets", icon: Package, feature: null },
     ],
   },
+  {
+    title: "My Work",
+    items: [
+      { href: "/my-schedule", label: "My Schedule", icon: Calendar, feature: null },
+      { href: "/clock", label: "Clock In/Out", icon: Clock, feature: null },
+      { href: "/my-attendance", label: "Attendance History", icon: ActivityIcon, feature: null },
+    ],
+  },
+  {
+    title: "My Requests",
+    items: [
+      { href: "/my-requests", label: "Requests", icon: ClipboardListIcon, feature: null },
+      { href: "/my-leave", label: "Leave", icon: PlaneIcon, feature: null },
+      { href: "/my-assets", label: "My Assets", icon: Package, feature: null },
+    ],
+  },
+  {
+    title: "Finance",
+    items: [
+      { href: "/my-payslips", label: "My Payslips", icon: DollarSign, feature: null },
+    ],
+  },
+  {
+    title: "Account",
+    items: [
+      { href: "/my-profile", label: "My Profile", icon: UserIcon, feature: null },
+    ],
+  },
 ];
 
 const employeeSections = [
