@@ -9,6 +9,8 @@ export async function GET(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR" && !(user as any).isSupervisor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const planGuard = await requireFeature("approvals");
+  if (planGuard) return planGuard;
   const db = await getTenantDb(user.orgId);
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") || "";
@@ -22,6 +24,8 @@ export async function POST(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR" && !(user as any).isSupervisor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const planGuard = await requireFeature("approvals");
+  if (planGuard) return planGuard;
   const db = await getTenantDb(user.orgId);
   const body = await req.json();
   const id = randomUUID();
@@ -52,6 +56,8 @@ export async function PATCH(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR" && !(user as any).isSupervisor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const planGuard = await requireFeature("approvals");
+  if (planGuard) return planGuard;
   const db = await getTenantDb(user.orgId);
   const body = await req.json();
   const now = new Date().toISOString();

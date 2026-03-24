@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Eye, EyeOff, User, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ function LoginForm() {
   const registered = searchParams.get("registered");
   const payment = searchParams.get("payment");
   const plan = searchParams.get("plan");
+  const authError = searchParams.get("error");
 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -69,6 +70,11 @@ function LoginForm() {
         {payment === "success" && (
           <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-800 text-center">
             🎉 Payment successful! Your <strong>{plan}</strong> plan is now active. Log in to get started.
+          </div>
+        )}
+        {authError === "AccessDenied" && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 text-center">
+            Access denied. Please sign in again. If this persists, your account/payment status may still be syncing.
           </div>
         )}
 

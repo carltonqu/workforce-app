@@ -57,22 +57,8 @@ const providers = [
       );
       if (!passwordMatch) return null;
 
-      // Block login if org subscription is still pending (paid plan, awaiting webhook)
-      if (user.orgId) {
-        try {
-          const org = await prisma.organization.findUnique({
-            where: { id: user.orgId },
-            select: { stripeStatus: true, tier: true },
-          });
-          if (org?.stripeStatus === "pending") {
-            // Payment not yet confirmed — block with a clear message
-            throw new Error("PAYMENT_PENDING");
-          }
-        } catch (e: any) {
-          if (e?.message === "PAYMENT_PENDING") throw e;
-          // DB error — allow login
-        }
-      }
+      // Do not hard-block login for pending subscriptions.
+      // Access restrictions are enforced in app/page/API gates instead.
 
       // Check email verification
       try {
