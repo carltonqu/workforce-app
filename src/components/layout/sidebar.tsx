@@ -139,7 +139,7 @@ const employeeSections = [
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-600 px-3 pt-5 pb-1 first:pt-2">
+    <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 px-3 pt-5 pb-1 first:pt-2">
       {title}
     </p>
   );
@@ -172,8 +172,8 @@ function NavLink({
       className={cn(
         "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
         isActive
-          ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-          : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white",
+          ? "bg-blue-50 text-blue-700"
+          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
         !hasAccess && "opacity-60"
       )}
     >
@@ -197,14 +197,14 @@ export function Sidebar() {
   const sections = isAdmin ? adminSections : isSupervisor ? supervisorSections : employeeSections;
 
   return (
-    <aside className="hidden md:flex md:flex-col w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 min-h-screen">
+    <aside className="flex flex-col w-64 bg-white border-r border-gray-200 min-h-screen">
       {/* Logo */}
-      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+      <div className="p-6 border-b border-gray-100">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
             <span className="text-white font-bold text-sm">W</span>
           </div>
-          <span className="font-bold text-xl text-gray-900 dark:text-white">WorkForce</span>
+          <span className="font-bold text-xl text-gray-900">WorkForce</span>
         </Link>
       </div>
 
@@ -231,23 +231,23 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom: role + plan badges */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-2">
+      <div className="p-4 border-t border-gray-200 space-y-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Role:</span>
+          <span className="text-xs text-gray-500">Role:</span>
           <Badge
             variant="outline"
             className={cn(
               "text-xs",
               isAdmin
-                ? "border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300"
-                : "border-gray-300 text-gray-600 dark:border-gray-600 dark:text-gray-400"
+                ? "border-blue-300 text-blue-700"
+                : "border-gray-300 text-gray-600"
             )}
           >
             {role}
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400">Plan:</span>
+          <span className="text-xs text-gray-500">Plan:</span>
           <Badge
             className={cn("text-xs", TIER_COLORS[tier as keyof typeof TIER_COLORS])}
             variant="outline"
