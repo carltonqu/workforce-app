@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
     const email = String(body?.email || "").trim().toLowerCase();
     const password = String(body?.password || "");
     const companyName = String(body?.companyName || "").trim();
+    const selectedPlan = String(body?.selectedPlan || "free").toLowerCase(); // free | pro | advance
 
     if (!name || !email || !password || !companyName) {
       return NextResponse.json({ error: "Name, email, password, and company name are required" }, { status: 400 });
@@ -102,23 +103,27 @@ export async function POST(req: NextRequest) {
     const expiresAt = new Date(now.getTime() + 15 * 60 * 1000).toISOString();
     const id = crypto.randomUUID();
 
+    // Ensure selectedPlan column exists
+    try { await db.execute("ALTER TABLE EmailVerification ADD COLUMN selectedPlan TEXT DEFAULT 'free'"); } catch {}
+
     // Upsert pending verification row
     await db.execute({
-      sql: `INSERT INTO EmailVerification (id,email,name,companyName,passwordHash,code,expiresAt,createdAt)
-            VALUES (?,?,?,?,?,?,?,?)
+      sql: `INSERT INTO EmailVerification (id,email,name,companyName,passwordHash,code,expiresAt,createdAt,selectedPlan)
+            VALUES (?,?,?,?,?,?,?,?,?)
             ON CONFLICT(email) DO UPDATE SET
               name=excluded.name,
               companyName=excluded.companyName,
               passwordHash=excluded.passwordHash,
               code=excluded.code,
               expiresAt=excluded.expiresAt,
-              createdAt=excluded.createdAt`,
-      args: [id, email, name, companyName, passwordHash, code, expiresAt, now.toISOString()],
+              createdAt=excluded.createdAt,
+              selectedPlan=excluded.selectedPlan`,
+      args: [id, email, name, companyName, passwordHash, code, expiresAt, now.toISOString(), selectedPlan],
     });
 
     await sendVerificationEmail(email, code, companyName);
 
-    return NextResponse.json({ success: true, message: "Verification code sent to your email." });
+    return NextResponse.json({ success: true, message: "Verification code sent to your email.", selectedPlan });
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || "Failed to register" }, { status: 500 });
   }

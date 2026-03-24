@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPrismaForOrg } from "@/lib/tenant";
+import { requireFeature } from "@/lib/api-guard";
 import { computePayroll, type PayrollInput } from "@/lib/payroll-engine";
 
 export async function POST(req: NextRequest) {
@@ -10,6 +11,8 @@ export async function POST(req: NextRequest) {
   if (user.role !== "MANAGER" && user.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const planGuard = await requireFeature("payroll");
+  if (planGuard) return planGuard;
   const prisma = await getPrismaForOrg(user.orgId ?? "");
 
   const body = await req.json() as {

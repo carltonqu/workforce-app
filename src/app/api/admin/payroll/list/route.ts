@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPrismaForOrg } from "@/lib/tenant";
+import { requireFeature } from "@/lib/api-guard";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -9,6 +10,8 @@ export async function GET(req: NextRequest) {
   if (user.role !== "MANAGER" && user.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const planGuard = await requireFeature("payroll");
+  if (planGuard) return planGuard;
   const prisma = await getPrismaForOrg(user.orgId ?? "");
 
   const { searchParams } = new URL(req.url);

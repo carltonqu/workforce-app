@@ -53,6 +53,11 @@ export async function POST(req: NextRequest) {
         const plan = cs.metadata?.plan as "PRO" | "ADVANCED" | undefined;
         if (orgId && plan && PLAN_TIERS[plan]) {
           await updateOrgTier(orgId, PLAN_TIERS[plan], "active", cs.subscription as string);
+          // Mark org as fully active (clear pending status)
+          await prisma.organization.update({
+            where: { id: orgId },
+            data: { stripeStatus: "active" },
+          });
         }
         break;
       }

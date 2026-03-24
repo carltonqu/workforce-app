@@ -18,6 +18,9 @@ import { toast } from "sonner";
 function LoginForm() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/dashboard";
+  const registered = searchParams.get("registered");
+  const payment = searchParams.get("payment");
+  const plan = searchParams.get("plan");
 
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -58,7 +61,18 @@ function LoginForm() {
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Workforce Management System</p>
         </div>
 
-        <Card className="border border-gray-200 dark:border-gray-800 shadow-xl shadow-gray-100 dark:shadow-none">
+        {registered === "1" && (
+          <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-800 text-center">
+            ✅ Account created! You can now log in.
+          </div>
+        )}
+        {payment === "success" && (
+          <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-800 text-center">
+            🎉 Payment successful! Your <strong>{plan}</strong> plan is now active. Log in to get started.
+          </div>
+        )}
+
+        <Card className="border border-gray-200 shadow-xl shadow-gray-100">
           <CardHeader className="text-center pb-2">
             <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
             <CardDescription className="text-sm">Sign in with your username or email</CardDescription>
