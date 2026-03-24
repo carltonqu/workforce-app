@@ -79,6 +79,8 @@ export async function GET(req: NextRequest) {
           COALESCE(SUM(grossPay), 0)       AS totalGross,
           COALESCE(SUM(netPay),   0)       AS totalNet,
           COALESCE(SUM(totalOtherDeductions + sssEmployee + philhealthEmployee + pagibigEmployee + withholdingTax), 0) AS totalDeductions,
+          COALESCE(SUM(CASE WHEN status='RELEASED' THEN netPay ELSE 0 END), 0) AS totalReleased,
+          COALESCE(SUM(CASE WHEN status='APPROVED' THEN netPay ELSE 0 END), 0) AS totalApproved,
           SUM(CASE WHEN status='DRAFT'    THEN 1 ELSE 0 END) AS draftCount,
           SUM(CASE WHEN status='APPROVED' THEN 1 ELSE 0 END) AS approvedCount,
           SUM(CASE WHEN status='RELEASED' THEN 1 ELSE 0 END) AS releasedCount
@@ -120,14 +122,16 @@ export async function GET(req: NextRequest) {
 
   const pr = payrollMonthRes.rows[0] as any;
   const financialSummary = {
-    month: now.toLocaleString("en-US", { month: "long", year: "numeric" }),
-    totalGross:      Number(pr?.totalGross      ?? 0),
-    totalNet:        Number(pr?.totalNet        ?? 0),
-    totalDeductions: Number(pr?.totalDeductions ?? 0),
-    entryCount:      Number(pr?.entryCount      ?? 0),
-    draftCount:      Number(pr?.draftCount      ?? 0),
-    approvedCount:   Number(pr?.approvedCount   ?? 0),
-    releasedCount:   Number(pr?.releasedCount   ?? 0),
+    month:          now.toLocaleString("en-US", { month: "long", year: "numeric" }),
+    totalGross:     Number(pr?.totalGross     ?? 0),
+    totalNet:       Number(pr?.totalNet       ?? 0),
+    totalDeductions:Number(pr?.totalDeductions?? 0),
+    totalReleased:  Number(pr?.totalReleased  ?? 0),
+    totalApproved:  Number(pr?.totalApproved  ?? 0),
+    entryCount:     Number(pr?.entryCount     ?? 0),
+    draftCount:     Number(pr?.draftCount     ?? 0),
+    approvedCount:  Number(pr?.approvedCount  ?? 0),
+    releasedCount:  Number(pr?.releasedCount  ?? 0),
   };
 
   return NextResponse.json({

@@ -32,6 +32,8 @@ interface FinancialSummary {
   totalGross: number;
   totalNet: number;
   totalDeductions: number;
+  totalReleased: number;
+  totalApproved: number;
   entryCount: number;
   draftCount: number;
   approvedCount: number;
@@ -157,12 +159,26 @@ export function AdminDashboardClient({ user: _user }: { user: any }) {
 
                   {hasData ? (
                     <>
-                      {/* Main figure */}
-                      <p className="text-3xl font-bold mt-1 tracking-tight">{fmt(fs!.totalNet)}</p>
-                      <p className="text-xs text-blue-200 mt-0.5">Total Net Pay this month</p>
+                      {/* Total Cash Out — headline */}
+                      <div className="flex items-baseline gap-3 mt-1 flex-wrap">
+                        <div>
+                          <p className="text-[10px] text-blue-200 uppercase tracking-wider">Total Cash Out (Released)</p>
+                          <p className="text-3xl font-bold tracking-tight">{fmt(fs!.totalReleased)}</p>
+                        </div>
+                        {fs!.totalApproved > 0 && (
+                          <div className="border-l border-white/20 pl-3">
+                            <p className="text-[10px] text-blue-200 uppercase tracking-wider">Pending Release</p>
+                            <p className="text-xl font-semibold text-yellow-200">{fmt(fs!.totalApproved)}</p>
+                          </div>
+                        )}
+                      </div>
 
-                      {/* Breakdown row */}
+                      {/* Secondary breakdown */}
                       <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3">
+                        <div>
+                          <p className="text-[10px] text-blue-200 uppercase tracking-wider">Total Net Pay</p>
+                          <p className="text-sm font-semibold">{fmt(fs!.totalNet)}</p>
+                        </div>
                         <div>
                           <p className="text-[10px] text-blue-200 uppercase tracking-wider">Gross Pay</p>
                           <p className="text-sm font-semibold">{fmt(fs!.totalGross)}</p>
@@ -181,17 +197,17 @@ export function AdminDashboardClient({ user: _user }: { user: any }) {
                       <div className="flex gap-2 mt-3 flex-wrap">
                         {fs!.releasedCount > 0 && (
                           <span className="text-xs bg-green-500/30 text-green-100 px-2 py-0.5 rounded-full font-medium">
-                            {fs!.releasedCount} Released
+                            ✓ {fs!.releasedCount} Released
                           </span>
                         )}
                         {fs!.approvedCount > 0 && (
                           <span className="text-xs bg-yellow-400/30 text-yellow-100 px-2 py-0.5 rounded-full font-medium">
-                            {fs!.approvedCount} Approved
+                            ⏳ {fs!.approvedCount} Approved
                           </span>
                         )}
                         {fs!.draftCount > 0 && (
                           <span className="text-xs bg-white/20 text-blue-100 px-2 py-0.5 rounded-full font-medium">
-                            {fs!.draftCount} Draft
+                            📝 {fs!.draftCount} Draft
                           </span>
                         )}
                         {stats.payrollAlerts > 0 && (
