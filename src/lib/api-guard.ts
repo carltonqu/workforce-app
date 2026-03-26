@@ -40,6 +40,9 @@ export async function requireFeature(feature: Feature): Promise<NextResponse | n
       // Use DB tier (source of truth)
       const dbTier = (org?.tier ?? tier) as Tier;
 
+      // Allow pending-payment users through so they can complete checkout
+      if (stripeStatus === "pending") return null;
+
       if (isTrialExpired(dbTier, trialEndsAt, stripeStatus)) {
         return NextResponse.json({
           error: "Your trial has expired. Please upgrade to continue.",

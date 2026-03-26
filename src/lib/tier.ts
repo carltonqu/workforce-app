@@ -85,7 +85,7 @@ export const TIER_LABELS: Record<Tier, string> = {
  */
 export function isTrialExpired(tier: Tier, trialEndsAt?: string | null, stripeStatus?: string | null): boolean {
   if (tier !== "FREE") return false;
-  if (stripeStatus === "active" || stripeStatus === "trialing") return false;
+  if (stripeStatus === "active" || stripeStatus === "trialing" || stripeStatus === "pending") return false;
   if (!trialEndsAt) return false;
   return new Date(trialEndsAt).getTime() < Date.now();
 }
