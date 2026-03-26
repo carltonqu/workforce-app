@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireFeature } from "@/lib/api-guard";
 import { getPrismaForOrg } from "@/lib/tenant";
 
 export async function POST(
@@ -8,6 +9,8 @@ export async function POST(
 ) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const planGuard = await requireFeature("payroll");
+  if (planGuard) return planGuard;
   const user = session.user as { id: string; role: string; orgId?: string };
   if (user.role !== "MANAGER" && user.role !== "HR") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

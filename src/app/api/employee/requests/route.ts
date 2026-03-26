@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireFeature } from "@/lib/api-guard";
 import { getTenantDb } from "@/lib/tenant";
 import { randomUUID } from "crypto";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const planGuard = await requireFeature("approvals");
+  if (planGuard) return planGuard;
   const user = session.user as any;
   const db = await getTenantDb(user.orgId);
   const rows = await db.execute({
@@ -25,6 +28,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const planGuard = await requireFeature("approvals");
+  if (planGuard) return planGuard;
   const user = session.user as any;
   const db = await getTenantDb(user.orgId);
   const body = await req.json();

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireFeature } from "@/lib/api-guard";
 import { getPrismaForOrg, getTenantDb } from "@/lib/tenant";
 
 async function findUserByEmployeeId(db: Awaited<ReturnType<typeof getTenantDb>>, prisma: Awaited<ReturnType<typeof getPrismaForOrg>>, employeeId: string) {
@@ -23,6 +24,8 @@ async function findUserByEmployeeId(db: Awaited<ReturnType<typeof getTenantDb>>,
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const planGuard = await requireFeature("approvals");
+  if (planGuard) return planGuard;
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR" && !(user as any).isSupervisor)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

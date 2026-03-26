@@ -157,12 +157,16 @@ function LoginForm() {
                 Continue with Google
               </Button>
 
-              <Link
-                href="/signup"
-                className="block text-center text-sm text-blue-600 hover:underline mt-3"
-              >
-                Create admin account (email verification)
-              </Link>
+              <p className="text-center text-sm text-gray-500 mt-3">
+                Don&apos;t have an account?{" "}
+                <Link href="/signup" className="text-blue-600 hover:underline">
+                  Sign up
+                </Link>
+                <span className="mx-2 text-gray-300">·</span>
+                <Link href="/pricing" className="text-blue-600 hover:underline">
+                  View pricing
+                </Link>
+              </p>
             </form>
 
             {/* Demo accounts */}

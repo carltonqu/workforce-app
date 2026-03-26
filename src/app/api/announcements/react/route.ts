@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireFeature } from "@/lib/api-guard";
 import { getTenantDb } from "@/lib/tenant";
 import { randomUUID } from "crypto";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const planGuard = await requireFeature("announcements");
+  if (planGuard) return planGuard;
   const user = session.user as any;
   const userId = user.id;
   const db = await getTenantDb(user.orgId);

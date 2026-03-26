@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireFeature } from "@/lib/api-guard";
 import { getPrismaForOrg, getTenantDb } from "@/lib/tenant";
 import { randomUUID } from "crypto";
 
@@ -7,6 +8,8 @@ import { randomUUID } from "crypto";
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const planGuard = await requireFeature("scheduling");
+  if (planGuard) return planGuard;
   const sessionUser = session.user as { id: string; role: string; orgId?: string };
   if (sessionUser.role !== "MANAGER" && sessionUser.role !== "HR" && !(sessionUser as any).isSupervisor) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -101,6 +104,8 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const planGuard = await requireFeature("scheduling");
+  if (planGuard) return planGuard;
   const sessionUser = session.user as { role: string; orgId?: string };
   if (sessionUser.role !== "MANAGER" && sessionUser.role !== "HR" && !(sessionUser as any).isSupervisor) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

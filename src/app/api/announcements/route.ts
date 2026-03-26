@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireFeature } from "@/lib/api-guard";
 import { getPrismaForOrg, getTenantDb } from "@/lib/tenant";
 import { randomUUID } from "crypto";
 
@@ -23,6 +24,8 @@ async function ensureTables(db: Awaited<ReturnType<typeof getTenantDb>>) {
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const planGuard = await requireFeature("announcements");
+  if (planGuard) return planGuard;
   const user = session.user as any;
   const db = await getTenantDb(user.orgId);
   await ensureTables(db);
@@ -93,6 +96,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const planGuard = await requireFeature("announcements");
+  if (planGuard) return planGuard;
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
@@ -150,6 +155,8 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const planGuard = await requireFeature("announcements");
+  if (planGuard) return planGuard;
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
@@ -191,6 +198,8 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const planGuard = await requireFeature("announcements");
+  if (planGuard) return planGuard;
   const user = session.user as any;
   if (user.role !== "MANAGER" && user.role !== "HR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const db = await getTenantDb(user.orgId);

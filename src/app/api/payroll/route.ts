@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireFeature } from "@/lib/api-guard";
 import { getPrismaForOrg } from "@/lib/tenant";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const planGuard = await requireFeature("payroll");
+  if (planGuard) return planGuard;
   const user = session.user as any;
   const userId = user.id;
   const prisma = await getPrismaForOrg(user.orgId);
@@ -22,6 +25,8 @@ export async function POST(req: NextRequest) {
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const planGuard = await requireFeature("payroll");
+  if (planGuard) return planGuard;
 
   const user = session.user as any;
   if (user.role === "EMPLOYEE") {
