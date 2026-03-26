@@ -17,7 +17,10 @@ async function stripePost(path: string, params: Record<string, string>, secretKe
     body,
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data?.error?.message ?? "Stripe API error");
+  if (!res.ok) {
+    console.error(`[stripe] POST ${path} failed:`, JSON.stringify(data));
+    throw new Error(data?.error?.message ?? "Stripe API error");
+  }
   return data;
 }
 
@@ -80,18 +83,19 @@ export async function POST(req: NextRequest) {
       mode: "subscription",
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": "1",
-      success_url: `${appUrl}/settings`,
-      cancel_url: `${appUrl}/settings`,
+      success_url: "https://clockroster.com/settings",
+      cancel_url: "https://clockroster.com/settings",
       "metadata[orgId]": org.id,
       "metadata[plan]": plan,
       "subscription_data[metadata][orgId]": org.id,
       "subscription_data[metadata][plan]": plan,
-      payment_method_collection: "always",
     }, secretKey);
+
+    console.log("[stripe/checkout] session:", JSON.stringify({ id: checkoutSession.id, url: checkoutSession.url, status: checkoutSession.status }));
 
     const url = checkoutSession.url;
     if (!url) {
-      console.error("[stripe/checkout] No URL in session:", JSON.stringify(checkoutSession));
+      console.error("[stripe/checkout] No URL returned:", JSON.stringify(checkoutSession));
       return NextResponse.json({ error: "Stripe did not return a checkout URL. Please try again." }, { status: 500 });
     }
 

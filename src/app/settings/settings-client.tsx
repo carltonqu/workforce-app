@@ -86,10 +86,10 @@ export function SettingsClient({ user, org, trialExpired }: SettingsClientProps)
         body: JSON.stringify({ plan }),
       });
       const data = await res.json();
-      if (data.url) {
+      if (data.url && data.url.startsWith("https://")) {
         window.location.href = data.url;
       } else {
-        alert(data.error || "Failed to start checkout");
+        alert(data.error || `Checkout error: ${JSON.stringify(data)}`);
       }
     } finally {
       setLoading(null);
