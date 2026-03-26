@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ── PAID plan: create org/user in pending state, then redirect to Stripe ──
+    // ── PAID plan: create account first, then let frontend call /api/stripe/checkout ──
     const tier = PLAN_TIER_MAP[selectedPlan];
     const priceId = getPlanPriceMap()[selectedPlan];
 
@@ -135,19 +135,19 @@ export async function POST(req: NextRequest) {
     const org = await prisma.organization.create({
       data: {
         name: String(pending.companyName),
-        tier: "FREE", // will be upgraded by webhook after payment
+        tier: "FREE",
         stripeStatus: "pending",
       },
     });
 
-    // Create user with pending account status
+    // Create user
     const user = await prisma.user.create({
       data: {
         name: String(pending.name),
         email,
         password: String(pending.passwordHash),
         role: "MANAGER",
-        tier: "FREE", // will be upgraded by webhook
+        tier: "FREE",
         orgId: org.id,
       },
     });
@@ -155,42 +155,16 @@ export async function POST(req: NextRequest) {
     await db.execute({ sql: "UPDATE User SET emailVerified=1 WHERE id=?", args: [user.id] });
     await db.execute({ sql: "DELETE FROM EmailVerification WHERE email=?", args: [email] });
 
-    // Create Stripe customer + checkout session
-    const stripe = getStripe();
-    if (!stripe) {
-      return NextResponse.json({ error: "Payment system not configured." }, { status: 500 });
-    }
-
-    const customer = await stripe.customers.create({
-      email,
-      name: String(pending.name),
-      metadata: { orgId: org.id, userId: user.id },
-    });
-
-    await prisma.organization.update({
-      where: { id: org.id },
-      data: { stripeCustomerId: customer.id },
-    });
-
+    // Return success — frontend will login then call /api/stripe/checkout separately
+    // This avoids chaining too many async calls in one cold serverless function
     const appUrl = process.env.NEXTAUTH_URL ?? "https://clockroster.com";
-
-    const session = await stripe.checkout.sessions.create({
-      customer: customer.id,
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${appUrl}/login?payment=success&plan=${selectedPlan}`,
-      cancel_url: `${appUrl}/signup?canceled=1`,
-      metadata: { orgId: org.id, userId: user.id, plan: tier },
-      subscription_data: {
-        metadata: { orgId: org.id, userId: user.id, plan: tier },
-      },
-    });
+    const checkoutUrl = `${appUrl}/login?plan=${selectedPlan}&postLogin=checkout`;
 
     return NextResponse.json({
       success: true,
       plan: selectedPlan,
       requiresPayment: true,
-      checkoutUrl: session.url,
+      checkoutUrl,
       message: `Email verified. Redirecting to payment for ${tier} plan.`,
     });
 

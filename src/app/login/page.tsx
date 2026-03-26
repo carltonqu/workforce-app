@@ -31,6 +31,8 @@ function LoginForm() {
     e.preventDefault();
     setLoading(true);
 
+    const postLogin = searchParams.get("postLogin");
+
     const result = await signIn("credentials", {
       email: form.email,
       password: form.password,
@@ -43,6 +45,23 @@ function LoginForm() {
     if (!result || result.error) {
       toast.error("Invalid username/email or password.");
       return;
+    }
+
+    // After login, if postLogin=checkout, call Stripe checkout immediately
+    if (postLogin === "checkout" && plan) {
+      try {
+        const planCode = plan === "pro" ? "PRO" : "ADVANCED";
+        const res = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan: planCode }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+          return;
+        }
+      } catch {}
     }
 
     window.location.href = result.url ?? redirect;
