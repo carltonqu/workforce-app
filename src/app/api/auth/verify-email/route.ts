@@ -13,7 +13,7 @@ function getDb() {
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return null;
-  return new Stripe(key, { apiVersion: "2026-02-25.clover" });
+  return new Stripe(key, { apiVersion: "2026-02-25.clover", maxNetworkRetries: 0 });
 }
 
 async function ensureTables(db: ReturnType<typeof getDb>) {
@@ -33,10 +33,12 @@ async function ensureTables(db: ReturnType<typeof getDb>) {
   try { await db.execute("ALTER TABLE EmailVerification ADD COLUMN selectedPlan TEXT DEFAULT 'free'"); } catch {}
 }
 
-const PLAN_PRICE_MAP: Record<string, string | undefined> = {
-  pro:     process.env.STRIPE_PRICE_PRO,
-  advance: process.env.STRIPE_PRICE_ADVANCED,
-};
+function getPlanPriceMap(): Record<string, string | undefined> {
+  return {
+    pro:     process.env.STRIPE_PRICE_PRO,
+    advance: process.env.STRIPE_PRICE_ADVANCED,
+  };
+}
 
 const PLAN_TIER_MAP: Record<string, "FREE" | "PRO" | "ADVANCED"> = {
   free:    "FREE",
@@ -121,7 +123,7 @@ export async function POST(req: NextRequest) {
 
     // ── PAID plan: create org/user in pending state, then redirect to Stripe ──
     const tier = PLAN_TIER_MAP[selectedPlan];
-    const priceId = PLAN_PRICE_MAP[selectedPlan];
+    const priceId = getPlanPriceMap()[selectedPlan];
 
     if (!priceId) {
       return NextResponse.json({
