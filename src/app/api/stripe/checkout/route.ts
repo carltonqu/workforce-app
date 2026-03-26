@@ -80,15 +80,22 @@ export async function POST(req: NextRequest) {
       mode: "subscription",
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": "1",
-      success_url: `${appUrl}/settings?upgraded=1`,
-      cancel_url: `${appUrl}/settings?canceled=1`,
+      success_url: `${appUrl}/settings`,
+      cancel_url: `${appUrl}/settings`,
       "metadata[orgId]": org.id,
       "metadata[plan]": plan,
       "subscription_data[metadata][orgId]": org.id,
       "subscription_data[metadata][plan]": plan,
+      payment_method_collection: "always",
     }, secretKey);
 
-    return NextResponse.json({ url: checkoutSession.url });
+    const url = checkoutSession.url;
+    if (!url) {
+      console.error("[stripe/checkout] No URL in session:", JSON.stringify(checkoutSession));
+      return NextResponse.json({ error: "Stripe did not return a checkout URL. Please try again." }, { status: 500 });
+    }
+
+    return NextResponse.json({ url });
   } catch (err: any) {
     console.error("[stripe/checkout]", err);
     return NextResponse.json({ error: err?.message || "Checkout failed" }, { status: 500 });
