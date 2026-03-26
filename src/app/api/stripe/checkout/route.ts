@@ -7,7 +7,7 @@ import { STRIPE_PRICE_IDS } from "@/lib/tier";
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key, { apiVersion: "2026-02-25.clover", maxNetworkRetries: 0 });
+  return new Stripe(key, { apiVersion: "2024-06-20", maxNetworkRetries: 0 });
 }
 
 export async function POST(req: NextRequest) {

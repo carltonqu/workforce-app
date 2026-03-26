@@ -13,7 +13,7 @@ function getDb() {
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return null;
-  return new Stripe(key, { apiVersion: "2026-02-25.clover", maxNetworkRetries: 0 });
+  return new Stripe(key, { apiVersion: "2024-06-20", maxNetworkRetries: 0 });
 }
 
 async function ensureTables(db: ReturnType<typeof getDb>) {
