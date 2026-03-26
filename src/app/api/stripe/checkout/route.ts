@@ -7,53 +7,64 @@ import { STRIPE_PRICE_IDS } from "@/lib/tier";
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key, { apiVersion: "2024-06-20", maxNetworkRetries: 0 });
+  return new Stripe(key, { apiVersion: "2026-02-25.clover", maxNetworkRetries: 0 });
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await auth();
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = session.user as any;
-  const { plan } = await req.json() as { plan: "PRO" | "ADVANCED" };
+    const user = session.user as any;
+    const { plan } = await req.json() as { plan: "PRO" | "ADVANCED" };
 
-  const priceId = STRIPE_PRICE_IDS[plan];
-  if (!priceId) {
+    // Read price IDs at request time (not module load time)
+    const priceId = plan === "PRO"
+      ? process.env.STRIPE_PRICE_PRO
+      : process.env.STRIPE_PRICE_ADVANCED;
+
+    if (!priceId) {
+      return NextResponse.json({
+        error: "Stripe price not configured. Add STRIPE_PRICE_PRO / STRIPE_PRICE_ADVANCED to environment variables.",
+      }, { status: 400 });
+    }
+
+    const org = await prisma.organization.findUnique({ where: { id: user.orgId } });
+    if (!org) return NextResponse.json({ error: "Org not found" }, { status: 404 });
+
+    const stripe = getStripe();
+
+    let customerId = org.stripeCustomerId ?? undefined;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email ?? undefined,
+        name: org.name,
+        metadata: { orgId: org.id },
+      });
+      customerId = customer.id;
+      await prisma.organization.update({
+        where: { id: org.id },
+        data: { stripeCustomerId: customer.id },
+      });
+    }
+
+    const appUrl = process.env.NEXTAUTH_URL ?? "https://clockroster.com";
+
+    const checkoutSession = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${appUrl}/settings?upgraded=1`,
+      cancel_url: `${appUrl}/settings?canceled=1`,
+      metadata: { orgId: org.id, plan },
+      subscription_data: { metadata: { orgId: org.id, plan } },
+    });
+
+    return NextResponse.json({ url: checkoutSession.url });
+  } catch (err: any) {
+    console.error("[stripe/checkout]", err);
     return NextResponse.json({
-      error: "Stripe price not configured. Add STRIPE_PRICE_PRO / STRIPE_PRICE_ADVANCED to environment variables.",
-    }, { status: 400 });
+      error: err?.message || "Stripe checkout failed",
+    }, { status: 500 });
   }
-
-  const org = await prisma.organization.findUnique({ where: { id: user.orgId } });
-  if (!org) return NextResponse.json({ error: "Org not found" }, { status: 404 });
-
-  const stripe = getStripe();
-
-  let customerId = org.stripeCustomerId ?? undefined;
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: user.email ?? undefined,
-      name: org.name,
-      metadata: { orgId: org.id },
-    });
-    customerId = customer.id;
-    await prisma.organization.update({
-      where: { id: org.id },
-      data: { stripeCustomerId: customer.id },
-    });
-  }
-
-  const appUrl = process.env.NEXTAUTH_URL ?? "https://clockroster.com";
-
-  const checkoutSession = await stripe.checkout.sessions.create({
-    customer: customerId,
-    mode: "subscription",
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${appUrl}/settings?upgraded=1`,
-    cancel_url: `${appUrl}/settings?canceled=1`,
-    metadata: { orgId: org.id, plan },
-    subscription_data: { metadata: { orgId: org.id, plan } },
-  });
-
-  return NextResponse.json({ url: checkoutSession.url });
 }
