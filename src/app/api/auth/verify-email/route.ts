@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
 
     // ── FREE plan: create account immediately ──
     if (!isPaid) {
-      const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+      const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
       const org = await prisma.organization.create({
         data: {
           name: String(pending.companyName),

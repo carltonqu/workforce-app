@@ -28,10 +28,10 @@ model Organization {
   dbUrl        String?  // Tenant Turso DB URL (null = uses master DB)
   dbAuthToken  String?  // Tenant Turso DB auth token
   // Trial & Billing
-  trialEndsAt         DateTime?
-  stripeCustomerId    String?
+  trialEndsAt          String?   // ISO string (stored as TEXT in libsql)
+  stripeCustomerId     String?
   stripeSubscriptionId String?
-  stripeStatus        String?   // active, trialing, past_due, canceled, etc.
+  stripeStatus         String?   // active, trialing, past_due, canceled, etc.
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

@@ -83,7 +83,7 @@ const providers = [
             where: { id: user.orgId },
             select: { trialEndsAt: true, stripeStatus: true },
           });
-          trialEndsAt = org?.trialEndsAt?.toISOString() ?? null;
+          trialEndsAt = org?.trialEndsAt ? String(org.trialEndsAt) : null;
           stripeStatus = org?.stripeStatus ?? null;
         } catch {}
       }
@@ -229,7 +229,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               where: { id: dbUser.orgId },
               select: { trialEndsAt: true, stripeStatus: true },
             });
-            token.trialEndsAt = org?.trialEndsAt?.toISOString() ?? null;
+            token.trialEndsAt = org?.trialEndsAt ? String(org.trialEndsAt) : null;
             token.stripeStatus = org?.stripeStatus ?? null;
           }
         } catch {}

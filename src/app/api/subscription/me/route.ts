@@ -21,7 +21,7 @@ export async function GET() {
       })
     : null;
 
-  const trialEndsAt = org?.trialEndsAt?.toISOString() ?? null;
+  const trialEndsAt = org?.trialEndsAt ?? null;
   const now = Date.now();
   const trialDaysLeft = trialEndsAt
     ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - now) / 86400000))

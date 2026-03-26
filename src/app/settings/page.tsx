@@ -27,25 +27,27 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
   if (!fullUser) redirect("/login");
 
+  const trialEndsAtStr = org?.trialEndsAt ? String(org.trialEndsAt) : null;
+
   const trialExpired =
     params.trial_expired === "1" ||
     isTrialExpired(
       (fullUser.tier ?? "FREE") as any,
-      org?.trialEndsAt?.toISOString() ?? null,
+      trialEndsAtStr,
       org?.stripeStatus ?? null
     );
 
   const safeOrg = org
     ? {
         ...org,
-        trialEndsAt: org.trialEndsAt?.toISOString() ?? null,
+        trialEndsAt: trialEndsAtStr,
       }
     : null;
 
   return (
     <DashboardLayout title="Settings">
       <SettingsClient
-        user={{ ...fullUser, trialEndsAt: org?.trialEndsAt?.toISOString() ?? null, stripeStatus: org?.stripeStatus ?? null }}
+        user={{ ...fullUser, trialEndsAt: trialEndsAtStr, stripeStatus: org?.stripeStatus ?? null }}
         org={safeOrg}
         trialExpired={trialExpired}
       />

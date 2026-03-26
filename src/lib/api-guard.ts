@@ -36,7 +36,7 @@ export async function requireFeature(feature: Feature): Promise<NextResponse | n
         select: { stripeStatus: true, trialEndsAt: true, tier: true },
       });
       stripeStatus = org?.stripeStatus ?? null;
-      trialEndsAt = org?.trialEndsAt?.toISOString() ?? null;
+      trialEndsAt = org?.trialEndsAt ? String(org.trialEndsAt) : null;
       // Use DB tier (source of truth)
       const dbTier = (org?.tier ?? tier) as Tier;
 
