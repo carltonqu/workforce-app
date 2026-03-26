@@ -1,13 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { STRIPE_PRICE_IDS } from "@/lib/tier";
 
-function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("STRIPE_SECRET_KEY is not configured");
-  return new Stripe(key, { apiVersion: "2026-02-25.clover", maxNetworkRetries: 0 });
+// Extend Vercel function timeout to 30s
+export const maxDuration = 30;
+
+async function stripePost(path: string, params: Record<string, string>, secretKey: string) {
+  const body = new URLSearchParams(params).toString();
+  const res = await fetch(`https://api.stripe.com/v1${path}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Stripe-Version": "2024-06-20",
+    },
+    body,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message ?? "Stripe API error");
+  return data;
+}
+
+async function stripeGet(path: string, secretKey: string) {
+  const res = await fetch(`https://api.stripe.com/v1${path}`, {
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+      "Stripe-Version": "2024-06-20",
+    },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message ?? "Stripe API error");
+  return data;
 }
 
 export async function POST(req: NextRequest) {
@@ -18,29 +41,32 @@ export async function POST(req: NextRequest) {
     const user = session.user as any;
     const { plan } = await req.json() as { plan: "PRO" | "ADVANCED" };
 
-    // Read price IDs at request time (not module load time)
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (!secretKey) return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
+
     const priceId = plan === "PRO"
       ? process.env.STRIPE_PRICE_PRO
       : process.env.STRIPE_PRICE_ADVANCED;
 
     if (!priceId) {
       return NextResponse.json({
-        error: "Stripe price not configured. Add STRIPE_PRICE_PRO / STRIPE_PRICE_ADVANCED to environment variables.",
+        error: "Stripe price not configured. Add STRIPE_PRICE_PRO / STRIPE_PRICE_ADVANCED to env vars.",
       }, { status: 400 });
     }
 
     const org = await prisma.organization.findUnique({ where: { id: user.orgId } });
     if (!org) return NextResponse.json({ error: "Org not found" }, { status: 404 });
 
-    const stripe = getStripe();
+    const appUrl = process.env.NEXTAUTH_URL ?? "https://clockroster.com";
 
-    let customerId = org.stripeCustomerId ?? undefined;
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email ?? undefined,
+    // Get or create Stripe customer
+    let customerId: string = org.stripeCustomerId ?? "";
+    if (!customerId || customerId === "") {
+      const customer = await stripePost("/customers", {
+        email: user.email ?? "",
         name: org.name,
-        metadata: { orgId: org.id },
-      });
+        "metadata[orgId]": org.id,
+      }, secretKey);
       customerId = customer.id;
       await prisma.organization.update({
         where: { id: org.id },
@@ -48,23 +74,23 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const appUrl = process.env.NEXTAUTH_URL ?? "https://clockroster.com";
-
-    const checkoutSession = await stripe.checkout.sessions.create({
+    // Create checkout session
+    const checkoutSession = await stripePost("/checkout/sessions", {
       customer: customerId,
       mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
+      "line_items[0][price]": priceId,
+      "line_items[0][quantity]": "1",
       success_url: `${appUrl}/settings?upgraded=1`,
       cancel_url: `${appUrl}/settings?canceled=1`,
-      metadata: { orgId: org.id, plan },
-      subscription_data: { metadata: { orgId: org.id, plan } },
-    });
+      "metadata[orgId]": org.id,
+      "metadata[plan]": plan,
+      "subscription_data[metadata][orgId]": org.id,
+      "subscription_data[metadata][plan]": plan,
+    }, secretKey);
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (err: any) {
     console.error("[stripe/checkout]", err);
-    return NextResponse.json({
-      error: err?.message || "Stripe checkout failed",
-    }, { status: 500 });
+    return NextResponse.json({ error: err?.message || "Checkout failed" }, { status: 500 });
   }
 }
