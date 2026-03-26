@@ -35,8 +35,8 @@ async function ensureTables(db: ReturnType<typeof getDb>) {
 
 function getPlanPriceMap(): Record<string, string | undefined> {
   return {
-    pro:     process.env.STRIPE_PRICE_PRO,
-    advance: process.env.STRIPE_PRICE_ADVANCED,
+    pro:     process.env.STRIPE_PRICE_PRO?.trim(),
+    advance: process.env.STRIPE_PRICE_ADVANCED?.trim(),
   };
 }
 

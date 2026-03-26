@@ -47,9 +47,9 @@ export async function POST(req: NextRequest) {
     const secretKey = process.env.STRIPE_SECRET_KEY;
     if (!secretKey) return NextResponse.json({ error: "Stripe not configured" }, { status: 500 });
 
-    const priceId = plan === "PRO"
+    const priceId = (plan === "PRO"
       ? process.env.STRIPE_PRICE_PRO
-      : process.env.STRIPE_PRICE_ADVANCED;
+      : process.env.STRIPE_PRICE_ADVANCED)?.trim();
 
     if (!priceId) {
       return NextResponse.json({
