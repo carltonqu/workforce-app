@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { requireFeature } from "@/lib/api-guard";
-import { getPrismaForOrg, getTenantDb } from "@/lib/tenant";
+import { getTenantDb } from "@/lib/tenant";
 import { randomUUID } from "crypto";
 
 async function ensureTables(db: Awaited<ReturnType<typeof getTenantDb>>) {
@@ -102,7 +102,6 @@ export async function POST(req: NextRequest) {
   if (user.role !== "MANAGER" && user.role !== "HR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const db = await getTenantDb(user.orgId);
-  const prisma = await getPrismaForOrg(user.orgId);
   await ensureTables(db);
   const body = await req.json();
   const {
@@ -128,27 +127,6 @@ export async function POST(req: NextRequest) {
     args: [id, title, announcementBody, type || "general", imageBase64 || null, finalStatus, scheduledAt || null, targetBranch || null, targetDepartment || null, publishedAt, user.id, user.name || "Admin", user.orgId || null, now, now],
   });
 
-  // Only notify if publishing now
-  if (finalStatus === "published") {
-    try {
-      const users = await prisma.user.findMany({
-        where: user.orgId ? { orgId: user.orgId } : {},
-        select: { id: true, email: true },
-      });
-      for (const u of users) {
-        if (u.id !== user.id) {
-          await prisma.notification.create({
-            data: {
-              userId: u.id,
-              type: "ANNOUNCEMENT",
-              message: `📢 New announcement: ${title}`,
-            },
-          });
-        }
-      }
-    } catch { /* notifications are non-critical */ }
-  }
-
   return NextResponse.json({ id, status: finalStatus, success: true }, { status: 201 });
 }
 
@@ -161,7 +139,6 @@ export async function PATCH(req: NextRequest) {
   if (user.role !== "MANAGER" && user.role !== "HR") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const db = await getTenantDb(user.orgId);
-  const prisma = await getPrismaForOrg(user.orgId);
   const body = await req.json();
   const { id, title, body: announcementBody, type, imageBase64, status, scheduledAt, targetBranch, targetDepartment } = body;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -174,23 +151,6 @@ export async function PATCH(req: NextRequest) {
     sql: `UPDATE Announcement SET title=?, body=?, type=?, imageBase64=?, status=?, scheduledAt=?, targetBranch=?, targetDepartment=?, publishedAt=?, updatedAt=? WHERE id=?`,
     args: [title, announcementBody, type || "general", imageBase64 || null, finalStatus, scheduledAt || null, targetBranch || null, targetDepartment || null, publishedAt, now, id],
   });
-
-  // If publishing now, send notifications
-  if (finalStatus === "published") {
-    try {
-      const users = await prisma.user.findMany({
-        where: user.orgId ? { orgId: user.orgId } : {},
-        select: { id: true },
-      });
-      for (const u of users) {
-        if (u.id !== user.id) {
-          await prisma.notification.create({
-            data: { userId: u.id, type: "ANNOUNCEMENT", message: `📢 New announcement: ${title}` },
-          });
-        }
-      }
-    } catch { /* notifications are non-critical */ }
-  }
 
   return NextResponse.json({ success: true });
 }

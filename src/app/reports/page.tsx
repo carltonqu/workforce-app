@@ -29,14 +29,14 @@ export default async function ReportsPage() {
   const [timeEntries, payrollEntries] = await Promise.all([
     prisma.timeEntry.findMany({
       where: {
-        userId: user.id,
+        employeeId: user.id,
         clockIn: { gte: thirtyDaysAgo },
         clockOut: { not: null },
       },
       orderBy: { clockIn: "asc" },
     }),
     prisma.payrollEntry.findMany({
-      where: { userId: user.id },
+      where: { employeeId: user.id },
       orderBy: { periodEnd: "desc" },
       take: 6,
     }),

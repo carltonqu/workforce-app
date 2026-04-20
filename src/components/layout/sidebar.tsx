@@ -1,169 +1,75 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { usePathname, useRouter } from "next/navigation";
 import {
-  Clock,
   Calendar,
   DollarSign,
-  BarChart2,
-  Bell,
   Settings,
   LayoutDashboard,
   Users,
   Activity,
   Plane,
   ClipboardCheck,
-  Lock,
   TrendingUp,
   Megaphone,
   Package,
   ShieldCheck,
+  User as UserIcon,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { hasFeatureAccess, TIER_COLORS, TIER_LABELS, trialDaysLeft, type Tier, type Feature } from "@/lib/tier";
+import { toast } from "sonner";
 
-// ─── Admin Nav Structure ───────────────────────────────────────────────────────
+interface SidebarProps {
+  user?: {
+    name: string;
+    email: string;
+    role: string;
+  };
+}
 
-const adminSections = [
+// Simple navigation structure
+const navSections = [
   {
     title: "Overview",
     items: [
-      { href: "/dashboard",     label: "Dashboard",     icon: LayoutDashboard, feature: null },
-      { href: "/announcements", label: "Announcements", icon: Megaphone,        feature: "announcements" as const },
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/announcements", label: "Announcements", icon: Megaphone },
     ],
   },
   {
     title: "People",
     items: [
-      { href: "/employees",              label: "Employees",              icon: Users,       feature: "employees"   as const },
-      { href: "/attendance",             label: "Attendance",             icon: Activity,    feature: "attendance"  as const },
-      { href: "/performance",            label: "Performance",            icon: TrendingUp,  feature: "performance" as const },
-      { href: "/leave",                  label: "Leave Management",       icon: Plane,       feature: "approvals"   as const },
-      { href: "/supervisor-assignments", label: "Supervisor Assignments", icon: ShieldCheck, feature: "employees"   as const },
+      { href: "/employees", label: "Employees", icon: Users },
+      { href: "/attendance", label: "Attendance", icon: Activity },
+      { href: "/performance", label: "Performance", icon: TrendingUp },
+      { href: "/leave", label: "Leave Management", icon: Plane },
+      { href: "/supervisor-assignments", label: "Supervisor Assignments", icon: ShieldCheck },
     ],
   },
   {
     title: "Operations",
     items: [
-      { href: "/scheduling", label: "Scheduling", icon: Calendar,     feature: "scheduling" as const },
-      { href: "/approvals",  label: "Approvals",  icon: ClipboardCheck, feature: "approvals" as const },
-      { href: "/assets",     label: "Assets",     icon: Package,       feature: "assets"     as const },
+      { href: "/scheduling", label: "Scheduling", icon: Calendar },
+      { href: "/approvals", label: "Approvals", icon: ClipboardCheck },
+      { href: "/assets", label: "Assets", icon: Package },
     ],
   },
   {
     title: "Finance",
     items: [
-      { href: "/payroll", label: "Payroll",          icon: DollarSign, feature: "payroll"  as const },
-      { href: "/finance", label: "Finance Summary",  icon: TrendingUp, feature: "finance"  as const },
+      { href: "/payroll", label: "Payroll", icon: DollarSign },
+      { href: "/finance", label: "Finance Summary", icon: TrendingUp },
     ],
   },
   {
     title: "System",
     items: [
-      { href: "/settings", label: "Settings", icon: Settings, feature: null },
+      { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
 ];
-
-// ─── Employee Nav Structure ────────────────────────────────────────────────────
-
-import {
-  Activity as ActivityIcon,
-  Plane as PlaneIcon,
-  ClipboardList as ClipboardListIcon,
-  User as UserIcon,
-} from "lucide-react";
-
-const supervisorSections = [
-  {
-    title: "Overview",
-    items: [
-      { href: "/supervisor-dashboard", label: "Supervisor Dashboard", icon: LayoutDashboard, feature: null },
-      { href: "/announcements", label: "Announcements", icon: Megaphone, feature: null },
-    ],
-  },
-  {
-    title: "Team Operations",
-    items: [
-      { href: "/attendance", label: "Attendance", icon: Activity, feature: null },
-      { href: "/performance", label: "Performance", icon: TrendingUp, feature: null },
-      { href: "/leave", label: "Leave Approvals", icon: Plane, feature: null },
-      { href: "/scheduling", label: "Scheduling", icon: Calendar, feature: "scheduling" as const },
-      { href: "/assets", label: "Assets", icon: Package, feature: null },
-    ],
-  },
-  {
-    title: "My Work",
-    items: [
-      { href: "/my-schedule", label: "My Schedule", icon: Calendar, feature: null },
-      { href: "/clock", label: "Clock In/Out", icon: Clock, feature: null },
-      { href: "/my-attendance", label: "Attendance History", icon: ActivityIcon, feature: null },
-    ],
-  },
-  {
-    title: "My Requests",
-    items: [
-      { href: "/my-requests", label: "Requests", icon: ClipboardListIcon, feature: null },
-      { href: "/my-leave", label: "Leave", icon: PlaneIcon, feature: null },
-      { href: "/my-assets", label: "My Assets", icon: Package, feature: null },
-    ],
-  },
-  {
-    title: "Finance",
-    items: [
-      { href: "/my-payslips", label: "My Payslips", icon: DollarSign, feature: null },
-    ],
-  },
-  {
-    title: "Account",
-    items: [
-      { href: "/my-profile", label: "My Profile", icon: UserIcon, feature: null },
-    ],
-  },
-];
-
-const employeeSections = [
-  {
-    title: "Overview",
-    items: [
-      { href: "/employee-dashboard", label: "My Dashboard", icon: LayoutDashboard, feature: null },
-      { href: "/announcements", label: "Announcements", icon: Megaphone, feature: null },
-    ],
-  },
-  {
-    title: "My Work",
-    items: [
-      { href: "/my-schedule", label: "My Schedule", icon: Calendar, feature: null },
-      { href: "/clock", label: "Clock In/Out", icon: Clock, feature: null },
-      { href: "/my-attendance", label: "Attendance History", icon: ActivityIcon, feature: null },
-    ],
-  },
-  {
-    title: "My Requests",
-    items: [
-      { href: "/my-requests", label: "Requests", icon: ClipboardListIcon, feature: null },
-      { href: "/my-leave", label: "Leave", icon: PlaneIcon, feature: null },
-      { href: "/my-assets", label: "My Assets", icon: Package, feature: null },
-    ],
-  },
-  {
-    title: "Finance",
-    items: [
-      { href: "/my-payslips", label: "My Payslips", icon: DollarSign, feature: null },
-    ],
-  },
-  {
-    title: "Account",
-    items: [
-      { href: "/my-profile", label: "My Profile", icon: UserIcon, feature: null },
-    ],
-  },
-];
-
-// ─── Section Header ────────────────────────────────────────────────────────────
 
 function SectionHeader({ title }: { title: string }) {
   return (
@@ -173,29 +79,18 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
-// ─── Nav Link ─────────────────────────────────────────────────────────────────
-
 function NavLink({
   href,
   label,
   icon: Icon,
-  feature,
-  tier,
-  isAdmin,
   pathname,
 }: {
   href: string;
   label: string;
   icon: React.ElementType;
-  feature: string | null;
-  tier: string;
-  isAdmin: boolean;
   pathname: string;
 }) {
   const isActive = pathname === href;
-  const validTier: Tier = (["FREE", "PRO", "ADVANCED"] as Tier[]).includes(tier as Tier) ? (tier as Tier) : "FREE";
-  // Feature gates only apply to admins — employees/supervisors always have access
-  const hasAccess = !feature || !isAdmin || hasFeatureAccess(validTier, feature as Feature);
 
   return (
     <Link
@@ -204,36 +99,29 @@ function NavLink({
         "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
         isActive
           ? "bg-blue-50 text-blue-700"
-          : hasAccess
-            ? "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-            : "text-gray-400 hover:bg-orange-50 hover:text-orange-600"
+          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
       )}
     >
-      <Icon className={cn("w-5 h-5 flex-shrink-0", !hasAccess && "opacity-50")} />
+      <Icon className="w-5 h-5 flex-shrink-0" />
       <span className="flex-1">{label}</span>
-      {!hasAccess && (
-        <span className="text-[9px] font-bold bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded-full">
-          {validTier === "FREE" ? "PRO" : "ADV"}
-        </span>
-      )}
     </Link>
   );
 }
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
-
-export function Sidebar() {
+export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const tier = (session?.user as any)?.tier || "FREE";
-  const role = (session?.user as any)?.role || "EMPLOYEE";
-  const isAdmin = role === "MANAGER" || role === "HR";
-  const isSupervisor = (session?.user as any)?.isSupervisor === true;
-  const trialEndsAt = (session?.user as any)?.trialEndsAt ?? null;
-  const daysLeft = trialDaysLeft(trialEndsAt);
-  const showTrialBadge = tier === "FREE" && daysLeft > 0;
+  const router = useRouter();
 
-  const sections = isAdmin ? adminSections : isSupervisor ? supervisorSections : employeeSections;
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      toast.success("Logged out successfully");
+      router.push("/login");
+      router.refresh();
+    } catch {
+      toast.error("Failed to logout");
+    }
+  }
 
   return (
     <aside className="flex flex-col w-64 bg-white border-r border-gray-200 min-h-screen">
@@ -249,7 +137,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-4 py-4 overflow-y-auto">
-        {sections.map((section, sIdx) => (
+        {navSections.map((section) => (
           <div key={section.title}>
             <SectionHeader title={section.title} />
             <div className="space-y-0.5">
@@ -259,9 +147,6 @@ export function Sidebar() {
                   href={item.href}
                   label={item.label}
                   icon={item.icon}
-                  feature={item.feature}
-                  tier={tier}
-                  isAdmin={isAdmin}
                   pathname={pathname}
                 />
               ))}
@@ -270,68 +155,28 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Bottom plan card */}
-      <div className="p-3 border-t border-gray-200">
-
-        {/* Plan card */}
-        <Link href="/settings">
-          <div className={cn(
-            "rounded-xl px-3 py-2.5 mb-2 cursor-pointer transition hover:opacity-90",
-            tier === "ADVANCED"
-              ? "bg-gradient-to-r from-purple-500 to-purple-700 text-white"
-              : tier === "PRO"
-              ? "bg-gradient-to-r from-blue-500 to-blue-700 text-white"
-              : "bg-gray-50 border border-gray-200"
-          )}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={cn("text-[10px] font-semibold uppercase tracking-widest", tier === "FREE" ? "text-gray-400" : "text-white/70")}>
-                  Current Plan
-                </p>
-                <p className={cn("text-sm font-bold mt-0.5", tier === "FREE" ? "text-gray-800" : "text-white")}>
-                  {TIER_LABELS[tier as keyof typeof TIER_LABELS] ?? tier}
-                </p>
-                {tier === "FREE" && daysLeft > 0 && (
-                  <p className="text-[10px] text-orange-500 font-medium mt-0.5">⏱ {daysLeft} days left</p>
-                )}
-                {tier === "FREE" && daysLeft === 0 && (
-                  <p className="text-[10px] text-red-500 font-medium mt-0.5">Trial expired</p>
-                )}
-                {tier === "ADVANCED" && (
-                  <p className="text-[10px] text-white/70 mt-0.5">Full access</p>
-                )}
-                {tier === "PRO" && (
-                  <p className="text-[10px] text-white/70 mt-0.5">Core features</p>
-                )}
-              </div>
-              <div className={cn(
-                "w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0",
-                tier === "ADVANCED" ? "bg-white/20" : tier === "PRO" ? "bg-white/20" : "bg-gray-200"
-              )}>
-                {tier === "ADVANCED" ? "👑" : tier === "PRO" ? "⚡" : "🔒"}
-              </div>
-            </div>
-            {tier !== "ADVANCED" && (
-              <p className={cn("text-[10px] mt-1.5 font-medium", tier === "FREE" ? "text-blue-600" : "text-white/80")}>
-                {tier === "FREE" ? "Upgrade to unlock more →" : "Upgrade to Advanced →"}
-              </p>
-            )}
+      {/* Bottom section */}
+      <div className="p-4 border-t border-gray-200">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <UserIcon className="w-5 h-5 text-blue-600" />
           </div>
-        </Link>
-
-        {/* Role badge */}
-        <div className="flex items-center gap-2 px-1">
-          <span className="text-xs text-gray-400">Role:</span>
-          <Badge
-            variant="outline"
-            className={cn(
-              "text-xs",
-              isAdmin ? "border-blue-300 text-blue-700" : "border-gray-300 text-gray-500"
-            )}
-          >
-            {role}
-          </Badge>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {user?.name || "User"}
+            </p>
+            <p className="text-xs text-gray-500 truncate">
+              {user?.email || ""}
+            </p>
+          </div>
         </div>
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          Logout
+        </button>
       </div>
     </aside>
   );

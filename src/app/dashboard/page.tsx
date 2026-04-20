@@ -8,11 +8,12 @@ import { AdminDashboardClient } from "./admin-dashboard-client";
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  const user = session.user as any;
+  
+  const user = session.user;
   const isAdmin = user.role === "MANAGER" || user.role === "HR";
 
   if (user.role === "EMPLOYEE") {
-    if (user.isSupervisor) redirect("/supervisor-dashboard");
+    // For now, employees also see admin dashboard or redirect to employee dashboard
     redirect("/employee-dashboard");
   }
 
@@ -24,7 +25,7 @@ export default async function DashboardPage() {
     );
   }
 
-  // Employee dashboard (existing)
+  // Employee dashboard
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const [timeEntries, notifications, payrollEntries] = await Promise.all([

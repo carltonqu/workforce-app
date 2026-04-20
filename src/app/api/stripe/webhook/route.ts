@@ -40,7 +40,6 @@ async function updateOrgTier(orgId: string, tier: Tier, stripeStatus: string, su
       ...(subscriptionId ? { stripeSubscriptionId: subscriptionId } : {}),
     },
   });
-  await prisma.user.updateMany({ where: { orgId }, data: { tier } });
   console.log(`[webhook] Updated org ${orgId} → tier=${tier} status=${stripeStatus}`);
 }
 

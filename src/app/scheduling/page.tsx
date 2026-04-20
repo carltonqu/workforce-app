@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { getPrismaForOrg } from "@/lib/tenant";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { SchedulingClient } from "./scheduling-client";
 import { hasFeatureAccess } from "@/lib/tier";
@@ -24,6 +24,8 @@ export default async function SchedulingPage() {
     );
   }
 
+  const prisma = await getPrismaForOrg(user.orgId ?? "");
+
   // Get current week's schedule
   const now = new Date();
   const weekStart = new Date(now);
@@ -40,11 +42,11 @@ export default async function SchedulingPage() {
       })
     : null;
 
-  // Get org employees
+  // Get org employees from Employee table
   const employees = user.orgId
-    ? await prisma.user.findMany({
-        where: { orgId: user.orgId },
-        select: { id: true, name: true, role: true },
+    ? await (prisma as any).employee.findMany({
+        where: { orgId: user.orgId, employmentStatus: "Active" },
+        select: { id: true, fullName: true, department: true },
       })
     : [];
 
@@ -54,7 +56,7 @@ export default async function SchedulingPage() {
     <DashboardLayout title="Scheduling">
       <SchedulingClient
         initialShifts={shifts}
-        employees={employees}
+        employees={employees.map((e: any) => ({ id: e.id, name: e.fullName, role: e.department }))}
         scheduleId={schedule?.id ?? null}
         orgId={user.orgId ?? null}
         weekStart={weekStart.toISOString()}

@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
 
   // Check if already clocked in
   const existing = await prisma.timeEntry.findFirst({
-    where: { userId, clockOut: null },
+    where: { employeeId: userId, clockOut: null },
   });
 
   if (existing) {
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   const entry = await prisma.timeEntry.create({
     data: {
-      userId,
+      employeeId: userId,
       clockIn: new Date(),
     },
   });

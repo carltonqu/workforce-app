@@ -8,13 +8,13 @@ export async function GET(req: NextRequest) {
   const user = session.user as any;
   const prisma = await getPrismaForOrg(user.orgId);
   const active = await prisma.timeEntry.findFirst({
-    where: { userId: user.id, clockOut: null },
+    where: { employeeId: user.id, clockOut: null },
     orderBy: { clockIn: "desc" },
   });
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayEntries = await prisma.timeEntry.findMany({
-    where: { userId: user.id, clockIn: { gte: today } },
+    where: { employeeId: user.id, clockIn: { gte: today } },
     orderBy: { clockIn: "asc" },
   });
   return NextResponse.json({

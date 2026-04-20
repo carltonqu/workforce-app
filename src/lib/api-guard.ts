@@ -1,72 +1,40 @@
-/**
- * Backend API guard — call this in any protected route.
- * Returns a NextResponse error if the user lacks access, or null if allowed.
- *
- * Usage:
- *   const guard = await requireFeature(req, "payroll");
- *   if (guard) return guard;
- */
-import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { hasFeatureAccess, isTrialExpired, type Feature, type Tier } from "@/lib/tier";
-import { prisma } from "@/lib/prisma";
+// API Guard stub - no authentication required
+// This file exists to prevent import errors while auth is being removed
 
-export async function requireFeature(feature: Feature): Promise<NextResponse | null> {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+import { NextRequest, NextResponse } from "next/server";
 
-  const user = session.user as any;
-  const role = user.role ?? "EMPLOYEE";
-  const isAdmin = role === "MANAGER" || role === "HR";
+export function requireAuth() {
+  return {
+    user: {
+      id: "admin",
+      name: "Admin User",
+      email: "admin@workforce.com",
+      role: "MANAGER",
+      tier: "ADVANCED",
+      orgId: "default-org",
+    },
+  };
+}
 
-  // Non-admins (employees/supervisors) bypass billing entirely
-  if (!isAdmin) return null;
+export function requireAdmin() {
+  return {
+    user: {
+      id: "admin",
+      name: "Admin User",
+      email: "admin@workforce.com",
+      role: "MANAGER",
+      tier: "ADVANCED",
+      orgId: "default-org",
+    },
+  };
+}
 
-  const tier = (user.tier ?? "FREE") as Tier;
-
-  // Check trial expiry from DB (don't trust session cache for billing)
-  let stripeStatus: string | null = null;
-  let trialEndsAt: string | null = null;
-  if (user.orgId) {
-    try {
-      const org = await prisma.organization.findUnique({
-        where: { id: user.orgId },
-        select: { stripeStatus: true, trialEndsAt: true, tier: true },
-      });
-      stripeStatus = org?.stripeStatus ?? null;
-      trialEndsAt = org?.trialEndsAt ? String(org.trialEndsAt) : null;
-      // Use DB tier (source of truth)
-      const dbTier = (org?.tier ?? tier) as Tier;
-
-      // Allow pending-payment users through so they can complete checkout
-      if (stripeStatus === "pending") return null;
-
-      if (isTrialExpired(dbTier, trialEndsAt, stripeStatus)) {
-        return NextResponse.json({
-          error: "Your trial has expired. Please upgrade to continue.",
-          code: "TRIAL_EXPIRED",
-        }, { status: 402 });
-      }
-
-      if (!hasFeatureAccess(dbTier, feature)) {
-        return NextResponse.json({
-          error: `This feature requires a higher plan. Current plan: ${dbTier}.`,
-          code: "PLAN_REQUIRED",
-          required: feature,
-        }, { status: 403 });
-      }
-    } catch {
-      // If DB check fails, fall back to session tier
-      if (!hasFeatureAccess(tier, feature)) {
-        return NextResponse.json({
-          error: "This feature requires a higher plan.",
-          code: "PLAN_REQUIRED",
-        }, { status: 403 });
-      }
-    }
-  }
-
+export function requireFeature(_feature: string) {
   return null;
+}
+
+export function withAuth(handler: (req: NextRequest, ...args: any[]) => Promise<NextResponse>) {
+  return async (req: NextRequest, ...args: any[]) => {
+    return handler(req, ...args);
+  };
 }

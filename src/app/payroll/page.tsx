@@ -25,19 +25,11 @@ export default async function PayrollPage() {
   const prisma = await getPrismaForOrg(user.orgId ?? "");
   const isAdmin = user.role === "MANAGER" || user.role === "HR";
 
-  // Fetch User accounts (have login + can process payroll)
-  const userAccounts = isAdmin
-    ? await prisma.user.findMany({
-        where: user.orgId ? { orgId: user.orgId } : {},
-        select: { id: true, name: true, email: true, role: true },
-        orderBy: { name: "asc" },
-      })
-    : [];
-
   // Fetch ALL Employee profiles (includes those without user accounts)
   const employeeProfiles = isAdmin
     ? await (prisma as any).employee.findMany({
         select: {
+          id: true,
           email: true,
           branchLocation: true,
           department: true,
@@ -50,34 +42,25 @@ export default async function PayrollPage() {
       })
     : [];
 
-  const userEmailSet = new Set(userAccounts.map((u) => u.email));
-
-  const employeesWithoutAccount = employeeProfiles
-    .filter((ep: any) => ep.employmentStatus !== "Terminated" && !userEmailSet.has(ep.email))
+  const employees = employeeProfiles
+    .filter((ep: any) => ep.employmentStatus !== "Terminated")
     .map((ep: any) => ({
-      id: "",
+      id: ep.id,
       name: ep.fullName,
       email: ep.email,
       role: "EMPLOYEE",
-      hasNoAccount: true,
+      hasNoAccount: false,
     }));
-
-  const employees = [
-    ...userAccounts.map((u) => ({ ...u, hasNoAccount: false })),
-    ...employeesWithoutAccount,
-  ];
 
   // Fetch payroll entries — from TENANT DB
   const payrollEntriesRaw = isAdmin
     ? await prisma.payrollEntry.findMany({
         orderBy: { periodEnd: "desc" },
-        include: { user: { select: { name: true, email: true } } },
         take: 200,
       })
     : await prisma.payrollEntry.findMany({
-        where: { userId: user.id },
+        where: { employeeId: user.id },
         orderBy: { periodEnd: "desc" },
-        include: { user: { select: { name: true, email: true } } },
       });
 
   // Fetch holidays — from TENANT DB
@@ -94,7 +77,7 @@ export default async function PayrollPage() {
 
   const payrollEntries = payrollEntriesRaw.map((p: any) => ({
     id: p.id,
-    userId: p.userId,
+    userId: p.employeeId,
     periodStart: p.periodStart instanceof Date ? p.periodStart.toISOString() : String(p.periodStart),
     periodEnd: p.periodEnd instanceof Date ? p.periodEnd.toISOString() : String(p.periodEnd),
     periodType: p.periodType,
@@ -135,7 +118,7 @@ export default async function PayrollPage() {
     deductions: p.deductions,
     total: p.total,
     notes: p.notes ?? null,
-    user: p.user ?? null,
+    user: undefined,
   }));
 
   const holidays = holidaysRaw.map((h: any) => ({

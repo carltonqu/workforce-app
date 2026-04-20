@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Eye, EyeOff, User, Lock } from "lucide-react";
+import { Loader2, Eye, EyeOff, User, Lock, Mail, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,34 +14,36 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/callback/credentials", {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: form.email,
-          password: form.password,
-          callbackUrl: "/dashboard",
-        }),
+        body: JSON.stringify(form),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        toast.error("Invalid credentials");
+        toast.error(data.error || "Registration failed");
         setLoading(false);
         return;
       }
 
-      toast.success("Login successful!");
+      toast.success("Account created successfully!");
       router.push("/dashboard");
       router.refresh();
     } catch {
@@ -50,7 +52,7 @@ export default function LoginPage() {
     }
   }
 
-  async function handleGoogleLogin() {
+  async function handleGoogleRegister() {
     setLoading(true);
     window.location.href = "/api/auth/signin/google?callbackUrl=/dashboard";
   }
@@ -71,16 +73,16 @@ export default function LoginPage() {
 
         <Card className="border border-gray-200 shadow-xl shadow-gray-100">
           <CardHeader className="text-center pb-2">
-            <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-            <CardDescription className="text-sm">Sign in to your account</CardDescription>
+            <CardTitle className="text-2xl font-bold">Create account</CardTitle>
+            <CardDescription className="text-sm">Get started with your own workspace</CardDescription>
           </CardHeader>
           <CardContent className="pt-4">
-            {/* Google Sign In */}
+            {/* Google Sign Up */}
             <Button
               type="button"
               variant="outline"
               className="w-full flex items-center gap-3 mb-4"
-              onClick={handleGoogleLogin}
+              onClick={handleGoogleRegister}
               disabled={loading}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -97,18 +99,36 @@ export default function LoginPage() {
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-gray-500">Or continue with email</span>
+                <span className="bg-white px-2 text-gray-500">Or register with email</span>
               </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Full Name */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    required
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="John Doe"
+                    className="w-full pl-9 pr-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition"
+                  />
+                </div>
+              </div>
+
               {/* Email */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Email
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="email"
                     required
@@ -131,7 +151,8 @@ export default function LoginPage() {
                   <input
                     type={showPassword ? "text" : "password"}
                     required
-                    autoComplete="current-password"
+                    autoComplete="new-password"
+                    minLength={6}
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
                     placeholder="••••••••"
@@ -145,6 +166,7 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                <p className="text-xs text-gray-400">Minimum 6 characters</p>
               </div>
 
               <Button
@@ -153,16 +175,16 @@ export default function LoginPage() {
                 disabled={loading}
               >
                 {loading ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in...</>
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating account...</>
                 ) : (
-                  "Sign in"
+                  "Create account"
                 )}
               </Button>
 
               <p className="text-center text-sm text-gray-500 mt-3">
-                Don&apos;t have an account?{" "}
-                <Link href="/register" className="text-blue-600 hover:underline">
-                  Register
+                Already have an account?{" "}
+                <Link href="/login" className="text-blue-600 hover:underline">
+                  Sign in
                 </Link>
               </p>
             </form>

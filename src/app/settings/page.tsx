@@ -12,27 +12,19 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const user = session.user as any;
   const params = await searchParams;
 
-  const [fullUser, org] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: user.id },
-      select: { id: true, name: true, email: true, role: true, tier: true, orgId: true },
-    }),
-    user.orgId
-      ? prisma.organization.findUnique({
-          where: { id: user.orgId },
-          select: { id: true, name: true, tier: true, stripeCustomerId: true, stripeStatus: true, trialEndsAt: true },
-        })
-      : null,
-  ]);
-
-  if (!fullUser) redirect("/login");
+  const org = user.orgId
+    ? await prisma.organization.findUnique({
+        where: { id: user.orgId },
+        select: { id: true, name: true, tier: true, stripeCustomerId: true, stripeStatus: true, trialEndsAt: true },
+      })
+    : null;
 
   const trialEndsAtStr = org?.trialEndsAt ? String(org.trialEndsAt) : null;
 
   const trialExpired =
     params.trial_expired === "1" ||
     isTrialExpired(
-      (fullUser.tier ?? "FREE") as any,
+      (user.tier ?? "FREE") as any,
       trialEndsAtStr,
       org?.stripeStatus ?? null
     );
@@ -47,7 +39,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   return (
     <DashboardLayout title="Settings">
       <SettingsClient
-        user={{ ...fullUser, trialEndsAt: trialEndsAtStr, stripeStatus: org?.stripeStatus ?? null }}
+        user={{ 
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          tier: user.tier,
+          orgId: user.orgId,
+          trialEndsAt: trialEndsAtStr, 
+          stripeStatus: org?.stripeStatus ?? null 
+        }}
         org={safeOrg}
         trialExpired={trialExpired}
       />

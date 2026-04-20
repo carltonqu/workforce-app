@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   const entry = await prisma.payrollEntry.create({
     data: {
-      userId,
+      employeeId: userId,
       periodStart: new Date(periodStart),
       periodEnd: new Date(periodEnd),
       periodType: periodType ?? "MONTHLY",
@@ -77,9 +77,6 @@ export async function POST(req: NextRequest) {
       deductions: breakdown.sssEmployee + breakdown.philhealthEmployee + breakdown.pagibigEmployee + breakdown.withholdingTax + breakdown.totalOtherDeductions,
       total: breakdown.netPay,
       notes: notes ?? null,
-    },
-    include: {
-      user: { select: { name: true, email: true } },
     },
   });
 

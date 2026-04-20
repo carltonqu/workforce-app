@@ -19,15 +19,12 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status");
 
   const where: Record<string, unknown> = {};
-  if (userId) where.userId = userId;
+  if (userId) where.employeeId = userId;
   if (status) where.status = status;
 
   const entries = await prisma.payrollEntry.findMany({
     where,
     orderBy: { periodEnd: "desc" },
-    include: {
-      user: { select: { name: true, email: true } },
-    },
     take: 200,
   });
 

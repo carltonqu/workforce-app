@@ -28,7 +28,6 @@ export async function POST(
   const updated = await prisma.payrollEntry.update({
     where: { id },
     data: { status: "APPROVED" },
-    include: { user: { select: { name: true, email: true } } },
   });
 
   return NextResponse.json(updated);

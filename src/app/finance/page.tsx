@@ -25,7 +25,6 @@ export default async function FinancePage() {
 
   // Fetch all payroll entries from TENANT DB
   const payrollEntries = await prisma.payrollEntry.findMany({
-    include: { user: { select: { name: true, email: true } } },
     orderBy: { periodStart: "desc" },
   });
 
