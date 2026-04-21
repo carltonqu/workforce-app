@@ -6,16 +6,34 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
-  const dbUrl = process.env.DATABASE_URL?.trim() ?? "file:./dev.db";
+  // Check if we're in build/SSG mode (no env vars available)
+  if (typeof process === 'undefined' || !process.env.DATABASE_URL) {
+    // Return a dummy client for build time
+    return new PrismaClient({
+      datasources: {
+        db: {
+          url: "file:./dev.db"
+        }
+      }
+    });
+  }
+
+  const dbUrl = process.env.DATABASE_URL.trim();
   
   // If using Turso/libsql
   if (dbUrl.startsWith("libsql://") || dbUrl.startsWith("https://")) {
     const authToken = process.env.DATABASE_AUTH_TOKEN?.trim();
-    const adapter = new PrismaLibSql({ 
-      url: dbUrl, 
-      authToken 
-    });
-    return new PrismaClient({ adapter } as any);
+    try {
+      const adapter = new PrismaLibSql({ 
+        url: dbUrl, 
+        authToken 
+      });
+      return new PrismaClient({ adapter } as any);
+    } catch (error) {
+      console.error("Failed to create PrismaLibSql adapter:", error);
+      // Fallback to standard client
+      return new PrismaClient();
+    }
   }
   
   // Standard SQLite
