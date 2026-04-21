@@ -25,7 +25,7 @@ interface SidebarProps {
   user?: {
     name: string;
     email: string;
-    role: string;
+    role?: string;
   };
 }
 
