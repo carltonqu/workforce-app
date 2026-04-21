@@ -59,7 +59,7 @@ export default async function PayrollPage() {
         take: 200,
       })
     : await prisma.payrollEntry.findMany({
-        where: { employeeId: user.id },
+        where: { userId: user.id },
         orderBy: { periodEnd: "desc" },
       });
 
