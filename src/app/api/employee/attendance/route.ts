@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - 30);
   const entries = await prisma.timeEntry.findMany({
-    where: { employeeId: user.id, clockIn: { gte: startDate } },
+    where: { userId: user.id, clockIn: { gte: startDate } },
     orderBy: { clockIn: "desc" },
   });
   return NextResponse.json(entries.map(e => ({

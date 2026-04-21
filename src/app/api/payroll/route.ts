@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const prisma = await getPrismaForOrg(user.orgId);
 
   const entries = await prisma.payrollEntry.findMany({
-    where: { employeeId: userId },
+    where: { userId: userId },
     orderBy: { periodEnd: "desc" },
   });
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
   const entry = await prisma.payrollEntry.create({
     data: {
-      employeeId: data.userId,
+      userId: data.userId,
       periodStart: new Date(data.periodStart),
       periodEnd: new Date(data.periodEnd),
       regularHours: data.regularHours,

@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   // Find the active (open) time entry for this user
   const entry = await prisma.timeEntry.findFirst({
-    where: { employeeId: userId, clockOut: null },
+    where: { userId: userId, clockOut: null },
     orderBy: { clockIn: "desc" },
   });
 
