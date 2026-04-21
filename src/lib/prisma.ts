@@ -6,6 +6,11 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
+  // During build/SSG, return a dummy client that won't be used
+  if (process.env.NEXT_PHASE === 'phase-production-build' || process.env.NEXT_PHASE === 'phase-export') {
+    return {} as PrismaClient;
+  }
+
   const dbUrl = process.env.DATABASE_URL?.trim();
   
   // If using Turso/libsql with proper URL
@@ -18,8 +23,12 @@ function createPrismaClient(): PrismaClient {
     return new PrismaClient({ adapter } as any);
   }
   
-  // Standard SQLite or fallback
-  return new PrismaClient();
+  // For local SQLite - Prisma 7 requires the libsql adapter
+  // Create a local file-based adapter
+  const adapter = new PrismaLibSql({ 
+    url: dbUrl || "file:./dev.db"
+  });
+  return new PrismaClient({ adapter } as any);
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();
