@@ -12,10 +12,10 @@ export default async function TimeTrackingPage() {
 
   const [activeEntry, recentEntries] = await Promise.all([
     prisma.timeEntry.findFirst({
-      where: { employeeId: user.id, clockOut: null },
+      where: { userId: user.id, clockOut: null },
     }),
     prisma.timeEntry.findMany({
-      where: { employeeId: user.id, clockOut: { not: null } },
+      where: { userId: user.id, clockOut: { not: null } },
       orderBy: { clockIn: "desc" },
       take: 10,
     }),
