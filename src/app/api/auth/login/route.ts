@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loginUser, createToken, setSessionCookie } from "@/lib/auth";
+import { loginWithCredentials } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await loginUser(email, password);
+    const user = await loginWithCredentials(email, password);
 
     if (!user) {
       return NextResponse.json(
@@ -21,10 +21,6 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
-
-    // Create session token
-    const token = await createToken(user);
-    await setSessionCookie(token);
 
     return NextResponse.json({ user });
   } catch (error) {

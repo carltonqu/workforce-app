@@ -40,7 +40,7 @@ export async function POST(
     }),
     prisma.notification.create({
       data: {
-        userId: entry.employeeId,
+        userId: entry.userId,
         type: "PAYROLL_RELEASED",
         message: `Your payslip for the period ${periodStartFormatted} – ${periodEndFormatted} is now available. Net Pay: ₱${netPayFormatted}. View it in My Payslips.`,
       },
