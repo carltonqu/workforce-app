@@ -415,24 +415,28 @@ export const {
       }
       return true;
     },
-    async jwt({ token, user, trigger, session, account }) {
-      // Initial sign in - fetch full user data from database
-      if (user?.email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email },
-          select: { id: true, role: true, tier: true, orgId: true },
-        });
-        if (dbUser) {
-          token.id = dbUser.id;
-          token.role = dbUser.role;
-          token.tier = dbUser.tier;
-          token.orgId = dbUser.orgId;
+    async jwt({ token, user, trigger, session }) {
+      try {
+        // Initial sign in - fetch full user data from database
+        if (user?.email && !token.id) {
+          const dbUser = await prisma.user.findUnique({
+            where: { email: user.email },
+            select: { id: true, role: true, tier: true, orgId: true },
+          });
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.role = dbUser.role;
+            token.tier = dbUser.tier;
+            token.orgId = dbUser.orgId;
+          }
         }
-      }
 
-      // Refresh token data from DB
-      if (trigger === "update" && session) {
-        token.tier = session.tier;
+        // Refresh token data from DB
+        if (trigger === "update" && session) {
+          token.tier = session.tier;
+        }
+      } catch (error) {
+        console.error("JWT callback error:", error);
       }
 
       return token;
