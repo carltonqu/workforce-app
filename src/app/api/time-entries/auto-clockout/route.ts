@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         });
         await prisma.notification.create({
           data: {
-            userId: entry.employeeId,
+            userId: entry.userId,
             type: "AUTO_CLOCKOUT",
             message:
               "You were automatically clocked out after 8 hours. If you worked overtime, use the OT Clock In button.",
