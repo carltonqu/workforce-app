@@ -52,8 +52,8 @@ export default function LoginPage() {
 
   async function handleGoogleLogin() {
     setLoading(true);
-    // Use NextAuth's built-in signin endpoint with Google provider
-    window.location.href = "/api/auth/signin?callbackUrl=/dashboard";
+    // Redirect to Google OAuth directly via NextAuth callback
+    window.location.href = "/api/auth/callback/google?callbackUrl=/dashboard";
   }
 
   return (
