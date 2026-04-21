@@ -19,6 +19,7 @@ interface TopbarProps {
   user?: {
     name: string;
     email: string;
+    role?: string;
   };
 }
 
