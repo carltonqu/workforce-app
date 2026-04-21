@@ -9,7 +9,7 @@ export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
   
-  const user = session.user;
+  const user = session.user as any;
   const isAdmin = user.role === "MANAGER" || user.role === "HR";
 
   if (user.role === "EMPLOYEE") {
