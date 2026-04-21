@@ -330,11 +330,11 @@ export const {
   ],
   callbacks: {
     async redirect({ url, baseUrl }) {
-      // Redirect to dashboard after sign in
-      if (url.includes('/login') || url.includes('/api/auth')) {
-        return `${baseUrl}/dashboard`;
-      }
-      return url;
+      // Allows relative callback URLs
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      // Allows callback URLs on the same origin
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
     },
     async signIn({ user, account }) {
       // For Google sign-in, create org with separate database if new user
