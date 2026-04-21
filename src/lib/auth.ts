@@ -461,7 +461,7 @@ export async function getPrismaForOrg(orgId: string) {
       authToken: org.dbAuthToken,
     });
 
-    const adapter = new PrismaLibSql(client);
+    const adapter = new PrismaLibSql(client as any);
     return new PrismaClient({ adapter } as any);
   }
 
