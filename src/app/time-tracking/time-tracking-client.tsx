@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 interface TimeEntry {
   id: string;
-  employeeId: string;
+  userId: string;
   clockIn: string;
   clockOut: string | null;
   overtimeMinutes: number;
