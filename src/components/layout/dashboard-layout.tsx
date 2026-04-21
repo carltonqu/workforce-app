@@ -15,7 +15,7 @@ export async function DashboardLayout({ children, title }: DashboardLayoutProps)
     redirect("/login");
   }
 
-  const user = session.user;
+  const user = session.user as any;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
