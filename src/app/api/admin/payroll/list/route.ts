@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status");
 
   const where: Record<string, unknown> = {};
-  if (userId) where.employeeId = userId;
+  if (userId) where.userId = userId;
   if (status) where.status = status;
 
   const entries = await prisma.payrollEntry.findMany({

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   const entry = await prisma.payrollEntry.create({
     data: {
-      employeeId: userId,
+      userId: userId,
       periodStart: new Date(periodStart),
       periodEnd: new Date(periodEnd),
       periodType: periodType ?? "MONTHLY",
