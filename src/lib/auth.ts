@@ -304,7 +304,7 @@ export const {
         if (!credentials?.email || !credentials?.password) return null;
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
+          where: { email: (credentials.email as string).toLowerCase() },
         });
 
         if (!user || !user.password) return null;
