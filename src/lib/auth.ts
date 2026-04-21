@@ -329,6 +329,13 @@ export const {
     }),
   ],
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Redirect to dashboard after sign in
+      if (url.includes('/login') || url.includes('/api/auth')) {
+        return `${baseUrl}/dashboard`;
+      }
+      return url;
+    },
     async signIn({ user, account }) {
       // For Google sign-in, create org with separate database if new user
       if (account?.provider === "google" && user.email) {
