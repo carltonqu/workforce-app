@@ -3,7 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Megaphone, Clock, Send, Edit2, X, Calendar, Building2, Users2, Tag } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Plus, Trash2, Megaphone, Clock, Send, Edit2, X, Calendar, 
+  Building2, Users2, Tag, Sparkles, CheckCircle2, AlertCircle,
+  FileText, Image as ImageIcon
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface Reaction { emoji: string; count: number; userReacted: boolean; }
@@ -39,17 +44,52 @@ const EMOJI_MAP = [
   { key: "sad", emoji: "😢" },
 ];
 
-const TYPE_BADGES: Record<string, { label: string; color: string }> = {
-  general: { label: "📢 General", color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
-  birthday: { label: "🎂 Birthday", color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400" },
-  event: { label: "🎉 Event", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-  memo: { label: "📝 Memo", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
+const TYPE_CONFIG: Record<string, { label: string; icon: any; gradient: string; bg: string }> = {
+  general: { 
+    label: "General", 
+    icon: Megaphone, 
+    gradient: "from-blue-500 to-cyan-500",
+    bg: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800"
+  },
+  birthday: { 
+    label: "Birthday", 
+    icon: Sparkles, 
+    gradient: "from-pink-500 to-rose-500",
+    bg: "bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-950/40 dark:text-pink-300 dark:border-pink-800"
+  },
+  event: { 
+    label: "Event", 
+    icon: Calendar, 
+    gradient: "from-purple-500 to-indigo-500",
+    bg: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800"
+  },
+  memo: { 
+    label: "Memo", 
+    icon: FileText, 
+    gradient: "from-amber-500 to-orange-500",
+    bg: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800"
+  },
 };
 
-const STATUS_BADGE: Record<string, string> = {
-  published: "bg-green-100 text-green-700",
-  scheduled: "bg-blue-100 text-blue-700",
-  draft: "bg-gray-100 text-gray-600",
+const STATUS_CONFIG: Record<string, { bg: string; text: string; border: string; icon: any }> = {
+  published: { 
+    bg: "bg-emerald-50 dark:bg-emerald-950/40", 
+    text: "text-emerald-700 dark:text-emerald-300", 
+    border: "border-emerald-200 dark:border-emerald-800",
+    icon: CheckCircle2
+  },
+  scheduled: { 
+    bg: "bg-blue-50 dark:bg-blue-950/40", 
+    text: "text-blue-700 dark:text-blue-300", 
+    border: "border-blue-200 dark:border-blue-800",
+    icon: Clock
+  },
+  draft: { 
+    bg: "bg-gray-50 dark:bg-gray-900", 
+    text: "text-gray-600 dark:text-gray-400", 
+    border: "border-gray-200 dark:border-gray-700",
+    icon: FileText
+  },
 };
 
 const EMPTY_FORM = {
@@ -63,8 +103,30 @@ const EMPTY_FORM = {
   targetDepartment: "",
 };
 
-const inputCls = "w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
-const labelCls = "text-xs font-medium text-gray-500 dark:text-gray-400 block mb-1";
+const inputCls = "w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all";
+const labelCls = "text-xs font-medium text-gray-500 dark:text-gray-400 block mb-2";
+
+function TypeBadge({ type }: { type: string }) {
+  const config = TYPE_CONFIG[type] || TYPE_CONFIG.general;
+  const Icon = config.icon;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${config.bg}`}>
+      <Icon className="w-3.5 h-3.5" />
+      {config.label}
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const config = STATUS_CONFIG[status] || STATUS_CONFIG.draft;
+  const Icon = config.icon;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${config.bg} ${config.text} ${config.border}`}>
+      <Icon className="w-3.5 h-3.5" />
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
+}
 
 export function AnnouncementsClient({ userRole, branches, departments }: AnnouncementsClientProps) {
   const isAdmin = userRole === "MANAGER" || userRole === "HR";
@@ -197,19 +259,25 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
   const queuedAnnouncements = announcements.filter(a => a.status !== "published");
 
   const postFormNode = (
-    <Card className="border-blue-200 dark:border-blue-800">
-      <CardHeader className="pb-3">
+    <Card className="border-gray-100 dark:border-gray-800 shadow-sm animate-fade-in-up">
+      <CardHeader className="pb-4 border-b border-gray-50 dark:border-gray-800 bg-gradient-to-r from-blue-50/50 to-cyan-50/50 dark:from-blue-950/20 dark:to-cyan-950/20">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Edit2 className="w-4 h-4 text-blue-600" />
-            {editingId ? "Edit Announcement" : "New Announcement"}
-          </CardTitle>
-          <button type="button" onClick={resetForm} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+              {editingId ? <Edit2 className="w-4 h-4 text-white" /> : <Plus className="w-4 h-4 text-white" />}
+            </div>
+            <CardTitle className="text-base font-semibold">
+              {editingId ? "Edit Announcement" : "New Announcement"}
+            </CardTitle>
+          </div>
+          <button type="button" onClick={resetForm} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-6 space-y-5">
         {/* Title + Type */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-4">
           <div className="col-span-2">
             <label className={labelCls}>Title *</label>
             <input className={inputCls} placeholder="Announcement title..." value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
@@ -228,24 +296,24 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
         {/* Body */}
         <div>
           <label className={labelCls}>Message *</label>
-          <textarea className={inputCls} placeholder="Write your announcement..." rows={4} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} />
+          <textarea className={inputCls + " min-h-[120px] resize-none"} placeholder="Write your announcement..." rows={4} value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} />
         </div>
 
         {/* Image upload */}
         <div>
           <label className={labelCls}>Attach Image (optional, max 3MB)</label>
           <div className="flex gap-3 items-start">
-            <label className="flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-400 transition text-xs text-gray-500">
-              <Calendar className="w-4 h-4" /> Choose image
+            <label className="flex items-center gap-2 px-4 py-3 border border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-all text-sm text-gray-500 hover:text-blue-600">
+              <ImageIcon className="w-4 h-4" /> Choose image
               <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
             </label>
             {imagePreview && (
               <div className="relative">
-                <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded-lg border" />
+                <img src={imagePreview} alt="Preview" className="w-20 h-20 object-cover rounded-xl border border-gray-200 dark:border-gray-700" />
                 <button
                   type="button"
                   onClick={() => { setImagePreview(""); setForm(f => ({ ...f, imageBase64: "" })); }}
-                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs"
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-rose-600 transition-colors shadow-md"
                 >×</button>
               </div>
             )}
@@ -253,7 +321,7 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
         </div>
 
         {/* Targeting */}
-        <div className="grid grid-cols-2 gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+        <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
           <div>
             <label className={labelCls}><Building2 className="w-3 h-3 inline mr-1" />Target Branch (leave blank = all)</label>
             <select className={inputCls} value={form.targetBranch} onChange={e => setForm(f => ({ ...f, targetBranch: e.target.value }))}>
@@ -271,19 +339,19 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
         </div>
 
         {/* Status / Scheduling */}
-        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl space-y-3">
+        <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl space-y-4">
           <label className={labelCls}><Calendar className="w-3 h-3 inline mr-1" />Publishing</label>
           <div className="flex gap-2 flex-wrap">
             {([
-              { value: "published", label: "🟢 Publish Now", color: "border-green-400 bg-green-50 text-green-700" },
-              { value: "scheduled", label: "🕐 Schedule", color: "border-blue-400 bg-blue-50 text-blue-700" },
-              { value: "draft", label: "📋 Save as Draft", color: "border-gray-400 bg-gray-50 text-gray-700" },
+              { value: "published", label: "Publish Now", color: "from-emerald-500 to-green-500", bg: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+              { value: "scheduled", label: "Schedule", color: "from-blue-500 to-cyan-500", bg: "bg-blue-50 text-blue-700 border-blue-200" },
+              { value: "draft", label: "Save as Draft", color: "from-gray-500 to-gray-600", bg: "bg-gray-50 text-gray-700 border-gray-200" },
             ] as const).map(opt => (
               <button
                 type="button"
                 key={opt.value}
                 onClick={() => setForm(f => ({ ...f, status: opt.value }))}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${form.status === opt.value ? opt.color + " ring-1 ring-offset-1 ring-current" : "border-gray-200 bg-white dark:bg-gray-800 text-gray-500 dark:border-gray-600"}`}
+                className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all duration-200 ${form.status === opt.value ? opt.bg + " ring-2 ring-offset-1 ring-current" : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
               >
                 {opt.label}
               </button>
@@ -304,9 +372,14 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={resetForm}>Cancel</Button>
-          <Button type="button" onClick={handleSubmit} disabled={posting} className="bg-blue-600 hover:bg-blue-700 text-white">
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="outline" onClick={resetForm} className="rounded-xl">Cancel</Button>
+          <Button 
+            type="button" 
+            onClick={handleSubmit} 
+            disabled={posting} 
+            className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white rounded-xl shadow-md shadow-blue-200 dark:shadow-blue-900/30"
+          >
             {posting ? "Saving..." : editingId ? "Update" : form.status === "published" ? "Post Now" : form.status === "scheduled" ? "Schedule" : "Save Draft"}
           </Button>
         </div>
@@ -315,25 +388,26 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
   );
 
   const AnnouncementCard = ({ a }: { a: Announcement }) => {
-    const badge = TYPE_BADGES[a.type] || TYPE_BADGES.general;
+    const typeConfig = TYPE_CONFIG[a.type] || TYPE_CONFIG.general;
     return (
-      <Card className="overflow-hidden">
-        <CardContent className="pt-4 space-y-3">
-          <div className="flex items-start justify-between gap-2">
+      <Card className="overflow-hidden border-gray-100 dark:border-gray-800 shadow-sm hover-lift animate-fade-in-up">
+        <CardContent className="pt-5 space-y-4">
+          <div className="flex items-start justify-between gap-3">
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badge.color}`}>{badge.label}</span>
-                {a.targetBranch && <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30">🏢 {a.targetBranch}</span>}
-                {a.targetDepartment && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30">👥 {a.targetDepartment}</span>}
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <TypeBadge type={a.type} />
+                {a.targetBranch && <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">🏢 {a.targetBranch}</span>}
+                {a.targetDepartment && <span className="text-xs px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800">👥 {a.targetDepartment}</span>}
               </div>
-              <h3 className="font-bold text-gray-900 dark:text-white text-base">{a.title}</h3>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <h3 className="font-bold text-gray-900 dark:text-white text-lg">{a.title}</h3>
+              <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
                 Posted by <span className="font-medium text-gray-600 dark:text-gray-300">{a.createdByName || "Admin"}</span>
-                {" · "}{new Date(a.publishedAt || a.createdAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                <span className="text-gray-300">·</span>
+                {new Date(a.publishedAt || a.createdAt).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
               </p>
             </div>
             {isAdmin && (
-              <button onClick={() => handleDelete(a.id)} className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0">
+              <button onClick={() => handleDelete(a.id)} className="text-gray-300 hover:text-rose-500 transition-colors flex-shrink-0 p-1 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg">
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
@@ -346,12 +420,12 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
           )}
 
           {a.reactions.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-1 border-t border-gray-100 dark:border-gray-800">
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
               {a.reactions.filter(r => r.count > 0).map(r => {
                 const em = EMOJI_MAP.find(e => e.key === r.emoji);
                 if (!em) return null;
                 return (
-                  <span key={r.emoji} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${r.userReacted ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950 dark:border-blue-800" : "bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-800 dark:border-gray-700"}`}>
+                  <span key={r.emoji} className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border ${r.userReacted ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/40 dark:border-blue-800 dark:text-blue-300" : "bg-gray-50 border-gray-200 text-gray-600 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-400"}`}>
                     {em.emoji} {r.count}
                   </span>
                 );
@@ -359,12 +433,12 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
             </div>
           )}
 
-          <div className="flex gap-1.5 flex-wrap pt-1 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex gap-1.5 flex-wrap pt-2 border-t border-gray-100 dark:border-gray-800">
             {EMOJI_MAP.map(({ key, emoji }) => {
               const reacted = a.reactions.find(r => r.emoji === key)?.userReacted;
               return (
                 <button key={key} onClick={() => handleReact(a.id, key)}
-                  className={`text-lg px-2 py-1 rounded-lg transition-all hover:scale-110 active:scale-95 ${reacted ? "bg-blue-100 dark:bg-blue-950 ring-1 ring-blue-400" : "hover:bg-gray-100 dark:hover:bg-gray-800"}`}
+                  className={`text-lg px-3 py-1.5 rounded-xl transition-all hover:scale-110 active:scale-95 ${reacted ? "bg-blue-50 dark:bg-blue-950/40 ring-1 ring-blue-400" : "hover:bg-gray-50 dark:hover:bg-gray-800"}`}
                 >
                   {emoji}
                 </button>
@@ -377,41 +451,39 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
   };
 
   const QueueCard = ({ a }: { a: Announcement }) => {
-    const badge = TYPE_BADGES[a.type] || TYPE_BADGES.general;
+    const typeConfig = TYPE_CONFIG[a.type] || TYPE_CONFIG.general;
     return (
-      <Card className={`overflow-hidden border-l-4 ${a.status === "scheduled" ? "border-l-blue-400" : "border-l-gray-300"}`}>
+      <Card className={`overflow-hidden border-l-4 shadow-sm hover-lift ${a.status === "scheduled" ? "border-l-blue-500" : "border-l-gray-400"}`}>
         <CardContent className="pt-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap gap-1.5 mb-1">
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badge.color}`}>{badge.label}</span>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[a.status] || ""}`}>
-                  {a.status === "scheduled" ? "🕐 Scheduled" : "📋 Draft"}
-                </span>
-                {a.targetBranch && <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">🏢 {a.targetBranch}</span>}
-                {a.targetDepartment && <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">👥 {a.targetDepartment}</span>}
+              <div className="flex flex-wrap gap-2 mb-2">
+                <TypeBadge type={a.type} />
+                <StatusBadge status={a.status} />
+                {a.targetBranch && <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800">🏢 {a.targetBranch}</span>}
+                {a.targetDepartment && <span className="text-xs px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800">👥 {a.targetDepartment}</span>}
               </div>
               <p className="font-semibold text-gray-900 dark:text-white truncate">{a.title}</p>
-              <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{a.body}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{a.body}</p>
               {a.status === "scheduled" && a.scheduledAt && (
-                <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-2 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
                   Posts on: {new Date(a.scheduledAt).toLocaleString("en-PH", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                 </p>
               )}
-              {a.imageBase64 && <p className="text-xs text-gray-400 mt-1">📎 Image attached</p>}
+              {a.imageBase64 && <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5" /> Image attached</p>}
             </div>
             <div className="flex gap-1 flex-shrink-0">
               <button onClick={() => handlePublishNow(a)} title="Publish Now"
-                className="p-1.5 rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 transition">
+                className="p-2 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all">
                 <Send className="w-4 h-4" />
               </button>
               <button onClick={() => startEdit(a)} title="Edit"
-                className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition">
+                className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all">
                 <Edit2 className="w-4 h-4" />
               </button>
               <button onClick={() => handleDelete(a.id)} title="Delete"
-                className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition">
+                className="p-2 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
@@ -422,17 +494,38 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
   };
 
   return (
-    <div className="space-y-5 max-w-2xl mx-auto">
+    <div className="space-y-6 max-w-2xl mx-auto">
+      {/* CSS Animations */}
+      <style jsx global>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+      `}</style>
+
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Megaphone className="w-5 h-5 text-blue-600" /> Announcements
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">Company memos, events, and celebrations</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Megaphone className="w-6 h-6 text-blue-500" />
+              Announcements
+            </h1>
+            <Badge className="bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 border-0">
+              <Sparkles className="w-3 h-3 mr-1" />
+              {publishedAnnouncements.length}
+            </Badge>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Company memos, events, and celebrations</p>
         </div>
         {isAdmin && !showForm && (
-          <Button onClick={() => { setEditingId(null); setForm({ ...EMPTY_FORM }); setImagePreview(""); setShowForm(true); }} className="bg-blue-600 hover:bg-blue-700 text-white">
+          <Button 
+            onClick={() => { setEditingId(null); setForm({ ...EMPTY_FORM }); setImagePreview(""); setShowForm(true); }} 
+            className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white shadow-md shadow-blue-200 dark:shadow-blue-900/30"
+          >
             <Plus className="w-4 h-4 mr-1" /> New Post
           </Button>
         )}
@@ -443,17 +536,20 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
 
       {/* Tabs (admin only) */}
       {isAdmin && !showForm && (
-        <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl w-fit animate-fade-in-up" style={{ animationDelay: '100ms' }}>
           {([
-            { id: "feed" as const, label: `Feed (${publishedAnnouncements.length})` },
-            { id: "queue" as const, label: `Queue (${queuedAnnouncements.length})` },
+            { id: "feed" as const, label: "Feed", count: publishedAnnouncements.length },
+            { id: "queue" as const, label: "Queue", count: queuedAnnouncements.length },
           ]).map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === tab.id ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"}`}>
+            <button 
+              key={tab.id} 
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === tab.id ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"}`}
+            >
               {tab.label}
-              {tab.id === "queue" && queuedAnnouncements.length > 0 && (
-                <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center">{queuedAnnouncements.length}</span>
-              )}
+              <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === tab.id ? "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300" : "bg-gray-200 dark:bg-gray-700 text-gray-500"}`}>
+                {tab.count}
+              </span>
             </button>
           ))}
         </div>
@@ -461,51 +557,63 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
 
       {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-32 bg-gray-100 dark:bg-gray-800 rounded-2xl animate-pulse" style={{ animationDelay: `${i * 100}ms` }} />
+          ))}
         </div>
       ) : (
         <>
           {/* Feed tab (or employee view) */}
           {(!isAdmin || activeTab === "feed") && (
-            <>
+            <div className="space-y-4">
               {publishedAnnouncements.length === 0 ? (
-                <Card>
-                  <CardContent className="py-16 text-center">
-                    <Megaphone className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p className="text-gray-500 font-medium">No announcements yet</p>
-                    {isAdmin && <p className="text-sm text-gray-400 mt-1">Create your first post!</p>}
+                <Card className="border-gray-100 dark:border-gray-800">
+                  <CardContent className="flex flex-col items-center justify-center py-16 text-gray-400">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center mb-4">
+                      <Megaphone className="w-8 h-8 text-gray-300 dark:text-gray-600" />
+                    </div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No announcements yet</p>
+                    {isAdmin && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Create your first post!</p>}
                   </CardContent>
                 </Card>
               ) : (
-                publishedAnnouncements.map(a => <AnnouncementCard key={a.id} a={a} />)
+                publishedAnnouncements.map((a, index) => (
+                  <div key={a.id} style={{ animationDelay: `${200 + index * 100}ms` }}>
+                    <AnnouncementCard a={a} />
+                  </div>
+                ))
               )}
-            </>
+            </div>
           )}
 
           {/* Queue tab (admin only) */}
           {isAdmin && activeTab === "queue" && (
-            <>
+            <div className="space-y-3">
               {queuedAnnouncements.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <Clock className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-                    <p className="text-gray-500 font-medium">No drafts or scheduled posts</p>
-                    <p className="text-sm text-gray-400 mt-1">Create a post and save as Draft or Schedule it.</p>
+                <Card className="border-gray-100 dark:border-gray-800">
+                  <CardContent className="flex flex-col items-center justify-center py-16 text-gray-400">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center mb-4">
+                      <Clock className="w-8 h-8 text-gray-300 dark:text-gray-600" />
+                    </div>
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No drafts or scheduled posts</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Create a post and save as Draft or Schedule it.</p>
                   </CardContent>
                 </Card>
               ) : (
-                <div className="space-y-3">
-                  {queuedAnnouncements
-                    .sort((a, b) => {
-                      if (a.status === "scheduled" && b.status === "draft") return -1;
-                      if (a.status === "draft" && b.status === "scheduled") return 1;
-                      return new Date(a.scheduledAt || a.createdAt).getTime() - new Date(b.scheduledAt || b.createdAt).getTime();
-                    })
-                    .map(a => <QueueCard key={a.id} a={a} />)}
-                </div>
+                queuedAnnouncements
+                  .sort((a, b) => {
+                    if (a.status === "scheduled" && b.status === "draft") return -1;
+                    if (a.status === "draft" && b.status === "scheduled") return 1;
+                    return new Date(a.scheduledAt || a.createdAt).getTime() - new Date(b.scheduledAt || b.createdAt).getTime();
+                  })
+                  .map((a, index) => (
+                    <div key={a.id} style={{ animationDelay: `${200 + index * 50}ms` }}>
+                      <QueueCard a={a} />
+                    </div>
+                  ))
               )}
-            </>
+            </div>
           )}
         </>
       )}
