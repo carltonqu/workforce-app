@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Plane, RefreshCw, Plus, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ const defaultForm: LeaveForm = {
 };
 
 export function LeaveClient({ user }: { user: any }) {
+  const router = useRouter();
   const [records, setRecords] = useState<LeaveRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All");
@@ -167,7 +169,7 @@ export function LeaveClient({ user }: { user: any }) {
           </Button>
           <Button
             size="sm"
-            onClick={() => setShowModal(true)}
+            onClick={() => router.push("/dashboard/leave/new")}
             className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
           >
             <Plus className="w-3.5 h-3.5" />

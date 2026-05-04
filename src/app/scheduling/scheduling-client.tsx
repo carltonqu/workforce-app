@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Calendar, Clock, Search, Plus, 
   Edit2, Trash2, X, ChevronLeft, ChevronRight,
   Save, Loader2, Users, Sun, Sparkles, Filter,
-  CalendarDays, Briefcase
+  CalendarDays, Briefcase, CheckCircle2, AlertCircle
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -121,14 +122,37 @@ function formatDay(d: Date) {
   return d.toLocaleDateString("en-US", { weekday: "short" });
 }
 
-export function SchedulingClient() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+interface SchedulingClientProps {
+  initialShifts?: any[];
+  employees?: { id: string; name: string; role?: string }[];
+  scheduleId?: string | null;
+  orgId?: string | null;
+  weekStart?: string;
+}
+
+export function SchedulingClient({
+  initialShifts = [],
+  employees: initialEmployees = [],
+  scheduleId,
+  orgId,
+  weekStart: initialWeekStart,
+}: SchedulingClientProps) {
+  const router = useRouter();
+  const [employees, setEmployees] = useState<Employee[]>(initialEmployees.map(e => ({
+    id: e.id,
+    fullName: e.name,
+    employeeId: e.id,
+    email: "",
+    department: e.role || null,
+    branchLocation: null,
+    position: null,
+  })));
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialEmployees.length === 0);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
   
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [currentWeek, setCurrentWeek] = useState(initialWeekStart ? new Date(initialWeekStart) : new Date());
   const { start: weekStart, dates: weekDates } = useMemo(() => getWeekDates(currentWeek), [currentWeek]);
 
   const [scheduleSearch, setScheduleSearch] = useState("");
@@ -377,7 +401,7 @@ export function SchedulingClient() {
           </p>
         </div>
         <Button 
-          onClick={() => { setShowForm(!showForm); if (showForm) resetForm(); }}
+          onClick={() => router.push("/dashboard/scheduling/new")}
           className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white shadow-md shadow-blue-200 dark:shadow-blue-900/30 hover:shadow-lg hover:shadow-blue-300/50 transition-all duration-300"
         >
           <Plus className="w-4 h-4" />
@@ -737,7 +761,7 @@ export function SchedulingClient() {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No schedules found</h3>
                 <p className="text-gray-500 dark:text-gray-400 mb-4">Create your first schedule to get started</p>
                 <Button 
-                  onClick={() => setShowForm(true)} 
+                  onClick={() => router.push("/dashboard/scheduling/new")}
                   className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white shadow-md shadow-blue-200 dark:shadow-blue-900/30"
                 >
                   <Plus className="w-4 h-4 mr-2" /> Create Schedule

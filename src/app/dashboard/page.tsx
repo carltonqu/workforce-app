@@ -10,78 +10,105 @@ export default async function DashboardPage() {
   if (!session?.user) redirect("/login");
   
   const user = session.user as any;
-  const isAdmin = user.role === "MANAGER" || user.role === "HR";
+  const role = user.role;
 
-  if (user.role === "EMPLOYEE") {
-    // For now, employees also see admin dashboard or redirect to employee dashboard
-    redirect("/employee-dashboard");
+  // Redirect to role-specific dashboard
+  if (role === "MANAGER" || role === "HR") {
+    redirect("/dashboard/admin");
+  }
+  
+  if (role === "SUPERVISOR") {
+    redirect("/dashboard/supervisor");
+  }
+  
+  if (role === "EMPLOYEE") {
+    redirect("/dashboard/employee");
   }
 
-  if (isAdmin) {
+  // Fallback: If role is undefined or unknown, try to determine from isSupervisor flag
+  if (user.isSupervisor) {
+    redirect("/dashboard/supervisor");
+  }
+
+  // Final fallback to generic dashboard for unknown roles
+  // Load employee data
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  
+  try {
+    const [timeEntries, notifications, payrollEntries] = await Promise.all([
+      prisma.timeEntry.findMany({
+        where: { userId: user.id, clockIn: { gte: startOfMonth } },
+        orderBy: { clockIn: "desc" },
+        take: 5,
+      }),
+      prisma.notification.findMany({
+        where: { userId: user.id, read: false },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      }),
+      prisma.payrollEntry.findMany({
+        where: { userId: user.id },
+        orderBy: { periodEnd: "desc" },
+        take: 1,
+      }),
+    ]);
+
+    const totalMinutes = timeEntries.reduce((acc, entry) => {
+      if (entry.clockOut)
+        return acc + Math.floor((entry.clockOut.getTime() - entry.clockIn.getTime()) / 60000);
+      return acc;
+    }, 0);
+
+    const activeEntry = await prisma.timeEntry.findFirst({
+      where: { userId: user.id, clockOut: null },
+    });
+
+    const stats = {
+      totalHours: Math.floor(totalMinutes / 60),
+      overtimeHours:
+        Math.round(
+          (timeEntries.reduce((acc, e) => acc + e.overtimeMinutes, 0) / 60) * 10
+        ) / 10,
+      unreadNotifications: notifications.length,
+      lastPayroll: payrollEntries[0]?.total ?? null,
+    };
+
     return (
-      <DashboardLayout title="Admin Dashboard">
-        <AdminDashboardClient user={user} />
+      <DashboardLayout title="Dashboard">
+        <DashboardClient
+          user={user}
+          stats={stats}
+          recentEntries={timeEntries.map((e) => ({
+            ...e,
+            clockIn: e.clockIn.toISOString(),
+            clockOut: e.clockOut?.toISOString() ?? null,
+          }))}
+          notifications={notifications.map((n) => ({
+            ...n,
+            createdAt: n.createdAt.toISOString(),
+          }))}
+          isCurrentlyClockedIn={!!activeEntry}
+        />
+      </DashboardLayout>
+    );
+  } catch (error) {
+    // If database fails, show simple dashboard
+    return (
+      <DashboardLayout title="Dashboard">
+        <DashboardClient
+          user={user}
+          stats={{
+            totalHours: 0,
+            overtimeHours: 0,
+            unreadNotifications: 0,
+            lastPayroll: null,
+          }}
+          recentEntries={[]}
+          notifications={[]}
+          isCurrentlyClockedIn={false}
+        />
       </DashboardLayout>
     );
   }
-
-  // Employee dashboard
-  const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const [timeEntries, notifications, payrollEntries] = await Promise.all([
-    prisma.timeEntry.findMany({
-      where: { userId: user.id, clockIn: { gte: startOfMonth } },
-      orderBy: { clockIn: "desc" },
-      take: 5,
-    }),
-    prisma.notification.findMany({
-      where: { userId: user.id, read: false },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-    prisma.payrollEntry.findMany({
-      where: { userId: user.id },
-      orderBy: { periodEnd: "desc" },
-      take: 1,
-    }),
-  ]);
-
-  const totalMinutes = timeEntries.reduce((acc, entry) => {
-    if (entry.clockOut)
-      return acc + Math.floor((entry.clockOut.getTime() - entry.clockIn.getTime()) / 60000);
-    return acc;
-  }, 0);
-
-  const activeEntry = await prisma.timeEntry.findFirst({
-    where: { userId: user.id, clockOut: null },
-  });
-
-  const stats = {
-    totalHours: Math.floor(totalMinutes / 60),
-    overtimeHours:
-      Math.round(
-        (timeEntries.reduce((acc, e) => acc + e.overtimeMinutes, 0) / 60) * 10
-      ) / 10,
-    unreadNotifications: notifications.length,
-    lastPayroll: payrollEntries[0]?.total ?? null,
-  };
-
-  return (
-    <DashboardLayout title="Dashboard">
-      <DashboardClient
-        user={user}
-        stats={stats}
-        recentEntries={timeEntries.map((e) => ({
-          ...e,
-          clockIn: e.clockIn.toISOString(),
-          clockOut: e.clockOut?.toISOString() ?? null,
-        }))}
-        notifications={notifications.map((n) => ({
-          ...n,
-          createdAt: n.createdAt.toISOString(),
-        }))}
-        isCurrentlyClockedIn={!!activeEntry}
-      />
-    </DashboardLayout>
-  );
 }

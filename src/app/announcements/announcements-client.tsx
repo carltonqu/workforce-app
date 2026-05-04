@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -129,6 +130,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export function AnnouncementsClient({ userRole, branches, departments }: AnnouncementsClientProps) {
+  const router = useRouter();
   const isAdmin = userRole === "MANAGER" || userRole === "HR";
   const [activeTab, setActiveTab] = useState<"feed" | "queue">("feed");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -523,7 +525,7 @@ export function AnnouncementsClient({ userRole, branches, departments }: Announc
         </div>
         {isAdmin && !showForm && (
           <Button 
-            onClick={() => { setEditingId(null); setForm({ ...EMPTY_FORM }); setImagePreview(""); setShowForm(true); }} 
+            onClick={() => router.push("/dashboard/announcements/new")}
             className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white shadow-md shadow-blue-200 dark:shadow-blue-900/30"
           >
             <Plus className="w-4 h-4 mr-1" /> New Post

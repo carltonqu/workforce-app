@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Package,
   Plus,
@@ -177,6 +178,7 @@ export function AssetsClient({ user }: { user: any }) {
 // ─── Tab 1: Inventory ──────────────────────────────────────────────────────────
 
 function InventoryTab({ showToast }: { showToast: (m: string, t?: "success" | "error") => void }) {
+  const router = useRouter();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -281,7 +283,7 @@ function InventoryTab({ showToast }: { showToast: (m: string, t?: "success" | "e
             <Button variant="outline" size="sm" onClick={fetchAssets}>
               <RefreshCw className="w-4 h-4" />
             </Button>
-            <Button size="sm" onClick={openAdd}>
+            <Button size="sm" onClick={() => router.push("/dashboard/assets/new")}>
               <Plus className="w-4 h-4 mr-1" /> Add Asset
             </Button>
           </div>
